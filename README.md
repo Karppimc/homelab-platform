@@ -121,7 +121,7 @@ Detailed Architecture Decision Records will live in `docs/adr/`.
 
 - [x] **Phase 0 – Foundations:** Proxmox host, networking, repository
 - [x] **Phase 1 – Infrastructure as code:** Terraform user, cloud-init template, VM provisioning
-- [ ] **Phase 2 – Kubernetes:** 3-node k3s cluster provisioned from code
+- [x] **Phase 2 – Kubernetes:** 3-node k3s cluster provisioned from code
 - [ ] **Phase 3 – GitOps:** Argo CD app-of-apps managing all platform components
 - [ ] **Phase 4 – Observability by default:** Prometheus, Grafana and Loki; every service gets metrics and logs automatically
 - [ ] **Phase 5 – Policy as code:** Kyverno guardrails (resource limits, no `latest` tags, no root containers)
