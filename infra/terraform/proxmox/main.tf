@@ -1,7 +1,11 @@
-resource "proxmox_virtual_environment_vm" "test" {
-  name      = "test-vm"
+resource "proxmox_virtual_environment_vm" "k3s" {
+  for_each = var.k3s_nodes
+
+  name      = each.key
+  vm_id     = each.value.vm_id
   node_name = var.node_name
-  tags      = ["terraform", "test"]
+  tags      = ["terraform", "k3s", each.value.role]
+  on_boot   = true
 
   clone {
     vm_id = var.template_id
@@ -12,18 +16,18 @@ resource "proxmox_virtual_environment_vm" "test" {
   }
 
   cpu {
-    cores = 2
+    cores = each.value.cores
     type  = "host"
   }
 
   memory {
-    dedicated = 2048
+    dedicated = each.value.memory
   }
 
   disk {
     datastore_id = "local-lvm"
     interface    = "scsi0"
-    size         = 20
+    size         = each.value.disk
     discard      = "on"
     ssd          = true
   }
@@ -32,8 +36,12 @@ resource "proxmox_virtual_environment_vm" "test" {
     datastore_id = "local-lvm"
     ip_config {
       ipv4 {
-        address = "dhcp"
+        address = "${each.value.ip}/24"
+        gateway = var.gateway
       }
+    }
+    dns {
+      servers = [var.gateway]
     }
     user_account {
       username = "santeri"
