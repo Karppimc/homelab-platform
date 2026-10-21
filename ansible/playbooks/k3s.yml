@@ -52,17 +52,19 @@
   hosts: server
   become: true
   tasks:
-    - name: Copy kubeconfig to workstation
-      ansible.builtin.fetch:
+    - name: Read kubeconfig from server
+      ansible.builtin.slurp:
         src: /etc/rancher/k3s/k3s.yaml
-        dest: "{{ k3s_kubeconfig_local }}"
-        flat: true
+      register: k3s_kubeconfig
+      no_log: true
 
-    - name: Point kubeconfig to server IP and lock permissions
-      ansible.builtin.replace:
-        path: "{{ k3s_kubeconfig_local }}"
-        regexp: "https://127.0.0.1:6443"
-        replace: "https://{{ ansible_host }}:6443"
+    # Rewrite the server address in memory so the local file is written once
+    # and re-runs report ok instead of changed
+    - name: Write kubeconfig to workstation
+      ansible.builtin.copy:
+        content: "{{ k3s_kubeconfig.content | b64decode | replace('https://127.0.0.1:6443', 'https://' ~ ansible_host ~ ':6443') }}"
+        dest: "{{ k3s_kubeconfig_local }}"
         mode: "0600"
       delegate_to: localhost
       become: false
+      no_log: true
