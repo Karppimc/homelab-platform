@@ -115,4 +115,3 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 
 - Terraform state is local → move to a remote backend before multiple people run Terraform
 - Re-running the k3s playbook reports `changed` on the kubeconfig fetch (local file is modified after fetch)
-- README needs Phase 2 marked done and Ansible added to the stack and layout

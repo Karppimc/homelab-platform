@@ -4,7 +4,7 @@ A self-hosted **Internal Developer Platform** built on repurposed hardware, desi
 
 The goal is not just to run Kubernetes, but to build a platform where a developer can ship a new service through a paved road, and get monitoring, security guardrails and deployment automation without manual work.
 
-> **Status:** Phase 1 (infrastructure as code) complete. See the [roadmap](#roadmap).
+> **Status:** Phase 2 (Kubernetes) complete: a 3-node k3s cluster provisioned entirely from code. See the [roadmap](#roadmap).
 
 ---
 
@@ -12,25 +12,29 @@ The goal is not just to run Kubernetes, but to build a platform where a develope
 
 ```mermaid
 flowchart LR
-    dev[Developer workstation<br/>Terraform · Git]
+    dev[Developer workstation<br/>Terraform · Ansible · kubectl]
     gh[(GitHub<br/>homelab-platform)]
 
     subgraph pve[Proxmox VE · Lenovo Y50-70]
         tpl[Ubuntu 24.04<br/>cloud-init template]
-        subgraph k3s[k3s cluster - planned]
-            cp[control plane]
-            w1[worker-1]
-            w2[worker-2]
+        subgraph k3s[k3s cluster]
+            cp[k3s-cp-1<br/>control plane]
+            w1[k3s-worker-1]
+            w2[k3s-worker-2]
         end
     end
 
     pi[Raspberry Pi<br/>production site<br/>out of scope]
 
     dev -- terraform apply<br/>API token --> pve
+    dev -- ansible-playbook<br/>SSH --> k3s
+    dev -- kubectl<br/>:6443 --> cp
     dev -- git push --> gh
     tpl -. clone .-> cp
     tpl -. clone .-> w1
     tpl -. clone .-> w2
+    w1 -- join --> cp
+    w2 -- join --> cp
 ```
 
 The production website runs on a separate Raspberry Pi and is intentionally kept out of this platform. Experimentation and production do not share infrastructure.
@@ -54,7 +58,8 @@ Running a platform on a decade-old laptop is a deliberate constraint: it forces 
 | Virtualization | Proxmox VE | ✅ |
 | Infrastructure as code | Terraform + `bpg/proxmox` provider | ✅ |
 | VM provisioning | Ubuntu cloud images + cloud-init | ✅ |
-| Kubernetes | k3s | 🔜 |
+| Configuration management | Ansible + Ansible Vault | ✅ |
+| Kubernetes | k3s (3 nodes) | ✅ |
 | GitOps | Argo CD | 🔜 |
 | Observability | Prometheus, Grafana, Loki | 🔜 |
 | Policy as code | Kyverno | 🔜 |
@@ -67,6 +72,9 @@ homelab-platform/
 ├── infra/
 │   └── terraform/
 │       └── proxmox/      # VM provisioning on Proxmox
+├── ansible/
+│   ├── inventory/        # hosts and group_vars (secrets in Ansible Vault)
+│   └── playbooks/        # k3s installation
 ├── .gitattributes
 ├── .gitignore
 └── README.md
@@ -78,10 +86,12 @@ homelab-platform/
 
 - Proxmox VE host with a cloud-init VM template (ID `9000`)
 - Terraform >= 1.9
+- Ansible and kubectl
 - An SSH key pair (`~/.ssh/id_ed25519.pub`)
 - A Proxmox API token for a dedicated Terraform user (see [Security](#security))
+- An Ansible Vault password file at `~/.ansible-vault-pass`
 
-### Provision
+### 1. Provision VMs
 
 ```bash
 cd infra/terraform/proxmox
@@ -94,7 +104,26 @@ terraform plan
 terraform apply
 ```
 
-Terraform clones the template, injects the SSH key through cloud-init, and outputs the VM's IP address via the QEMU guest agent. The whole environment can be torn down and recreated with `terraform destroy` / `terraform apply`.
+Terraform clones the template, injects the SSH key through cloud-init, and outputs each VM's IP address via the QEMU guest agent.
+
+### 2. Install k3s
+
+```bash
+cd ansible
+ansible all -m ping
+ansible-playbook playbooks/k3s.yml
+```
+
+The playbook installs a pinned k3s version on the control plane, joins the workers with the cluster token from Ansible Vault, and fetches a kubeconfig to `~/.kube/homelab.yaml`.
+
+### 3. Verify
+
+```bash
+export KUBECONFIG=~/.kube/homelab.yaml
+kubectl get nodes -o wide
+```
+
+The whole environment can be torn down and rebuilt from scratch with `terraform destroy`, `terraform apply` and the playbook.
 
 ## Security
 
@@ -102,7 +131,8 @@ Security is treated as a platform feature, not an afterthought.
 
 - **Least privilege.** Terraform authenticates as a dedicated `terraform@pve` user with a custom role scoped to VM and datastore operations, never as `root`.
 - **Token-based auth.** API tokens instead of passwords, so access can be revoked or rotated without touching user accounts.
-- **Secrets stay out of Git.** `*.tfvars` and Terraform state are git-ignored. Exposed credentials are rotated, not reused.
+- **Secrets stay out of Git.** `*.tfvars` and Terraform state are git-ignored. The k3s cluster token is encrypted with Ansible Vault, and tasks that handle it use `no_log`. Exposed credentials are rotated, not reused.
+- **Key-only SSH.** VMs accept SSH keys injected by cloud-init; there are no passwords to leak or brute-force.
 - **Reproducible images.** The VM template has a cleared `machine-id` so every clone gets a unique identity.
 
 ## Design decisions
@@ -112,6 +142,9 @@ Security is treated as a platform feature, not an afterthought.
 | Proxmox instead of bare-metal k3s | Terraform can provision real infrastructure, and the cluster can be destroyed and rebuilt in minutes |
 | Cloud images instead of ISO installs | No manual installation steps; configuration happens at boot through cloud-init |
 | ext4 + LVM-thin instead of ZFS | ZFS write amplification is a poor fit for a consumer QLC SSD |
+| k3s instead of kubeadm | CNCF-conformant Kubernetes with a fraction of the control-plane overhead; on 16 GB of RAM the savings go to observability and platform workloads instead |
+| Terraform for VMs, Ansible for node configuration | Each tool does what it is best at: Terraform manages infrastructure lifecycle and state, Ansible handles idempotent OS and software configuration |
+| Pinned versions everywhere | Providers, k3s and (later) charts and images are pinned, so a rebuild produces the same platform as last time |
 | Separate production host | A broken experiment should never take down a live site |
 | `.home.arpa` for internal names | Reserved for home networks (RFC 8375), so it never collides with a real domain |
 
