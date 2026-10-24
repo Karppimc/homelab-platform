@@ -1,0 +1,20 @@
+# Root of the app-of-apps pattern. Applied once by ansible/playbooks/argocd.yml;
+# every Application manifest under platform/apps/ is then deployed from Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/karppimc/homelab-platform.git
+    targetRevision: main
+    path: platform/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

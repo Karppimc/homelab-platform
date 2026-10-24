@@ -76,6 +76,8 @@ homelab-platform/
 │   ├── inventory/        # hosts and group_vars (secrets in Ansible Vault)
 │   └── playbooks/        # k3s installation, Argo CD bootstrap
 ├── platform/
+│   ├── bootstrap/        # root Application (app-of-apps), applied once
+│   ├── apps/             # one Argo CD Application per platform component
 │   └── argocd/           # Argo CD Helm values
 ├── .gitattributes
 ├── .gitignore
@@ -88,7 +90,7 @@ homelab-platform/
 
 - Proxmox VE host with a cloud-init VM template (ID `9000`)
 - Terraform >= 1.9
-- Ansible, kubectl and Helm 3
+- Ansible (with the `kubernetes` Python library), kubectl and Helm 3
 - An SSH key pair (`~/.ssh/id_ed25519.pub`)
 - A Proxmox API token for a dedicated Terraform user (see [Security](#security))
 - An Ansible Vault password file at `~/.ansible-vault-pass`
@@ -132,7 +134,7 @@ cd ansible
 ansible-playbook playbooks/argocd.yml
 ```
 
-Installs a pinned Argo CD Helm chart with the values in `platform/argocd/`. The UI is not exposed outside the cluster; reach it with:
+Installs a pinned Argo CD Helm chart with the values in `platform/argocd/` and applies the root Application. From then on Argo CD deploys everything under `platform/apps/` from Git, including its own upgrades. The UI is not exposed outside the cluster; reach it with:
 
 ```bash
 kubectl -n argocd port-forward svc/argocd-server 8080:443
@@ -160,6 +162,7 @@ Security is treated as a platform feature, not an afterthought.
 | k3s instead of kubeadm | CNCF-conformant Kubernetes with a fraction of the control-plane overhead; on 16 GB of RAM the savings go to observability and platform workloads instead |
 | Terraform for VMs, Ansible for node configuration | Each tool does what it is best at: Terraform manages infrastructure lifecycle and state, Ansible handles idempotent OS and software configuration |
 | Argo CD bootstrapped by Ansible | Argo CD cannot install itself, so Ansible does the first Helm install; after that Argo CD manages platform components from Git |
+| App-of-apps | A single root Application watches `platform/apps/`; adding a component is a Git commit, not a manual `kubectl apply` |
 | Lean Argo CD install | Dex and notifications disabled, single replicas and memory limits on every component; HA brings nothing on a single physical host |
 | Pinned versions everywhere | Providers, k3s and (later) charts and images are pinned, so a rebuild produces the same platform as last time |
 | Separate production host | A broken experiment should never take down a live site |

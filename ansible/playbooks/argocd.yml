@@ -1,4 +1,5 @@
-# Bootstrap Argo CD into the cluster. After this, Argo CD manages itself from Git.
+# Bootstrap Argo CD into the cluster. After this, Argo CD manages itself from Git
+# (platform/apps/argocd.yaml), so the Helm install only runs on a fresh cluster.
 - name: Install Argo CD
   hosts: localhost
   connection: local
@@ -7,9 +8,18 @@
     argocd_chart_version: "10.10.2"
     argocd_namespace: argocd
     argocd_values: "{{ playbook_dir }}/../../platform/argocd/values.yaml"
+    argocd_root_app: "{{ playbook_dir }}/../../platform/bootstrap/root.yaml"
     kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/homelab.yaml"
   tasks:
-    - name: Install or upgrade Argo CD Helm release
+    - name: Check for an existing Argo CD release
+      kubernetes.core.helm_info:
+        name: argocd
+        release_namespace: "{{ argocd_namespace }}"
+        kubeconfig: "{{ kubeconfig }}"
+      register: argocd_release
+
+    # Skipped once Argo CD exists, so a re-run never downgrades a version bumped in Git
+    - name: Install Argo CD Helm release
       kubernetes.core.helm:
         name: argocd
         chart_ref: argo-cd
@@ -22,3 +32,10 @@
         kubeconfig: "{{ kubeconfig }}"
         wait: true
         wait_timeout: 10m
+      when: argocd_release.status is not defined
+
+    - name: Apply root Application (app-of-apps)
+      kubernetes.core.k8s:
+        src: "{{ argocd_root_app }}"
+        kubeconfig: "{{ kubeconfig }}"
+        state: present

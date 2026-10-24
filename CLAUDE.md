@@ -42,20 +42,25 @@ ansible/                   Ansible: k3s installation, Argo CD bootstrap
   inventory/group_vars/k3s_cluster/vars.yml
   inventory/group_vars/k3s_cluster/vault.yml   (Ansible Vault, encrypted)
   playbooks/k3s.yml
-  playbooks/argocd.yml     (runs on localhost via kubeconfig; chart version pinned here)
-platform/argocd/values.yaml  Argo CD Helm values (also read by Argo CD once it self-manages)
+  playbooks/argocd.yml     (runs on localhost via kubeconfig; Helm install only on a fresh cluster)
+platform/                  GitOps: everything here is deployed by Argo CD from GitHub main
+  bootstrap/root.yaml      root Application, applied by the argocd playbook
+  apps/                    one Application per component (argocd.yaml = self-management)
+  argocd/values.yaml       Argo CD Helm values
 README.md                  Public project description and roadmap
 CLAUDE.md                  This file
 ```
 
 Note: `group_vars` must live next to the inventory (or the playbook), otherwise Ansible silently ignores it.
 
+Argo CD reads `platform/` from GitHub, not from the workstation: **changes take effect only after push**. The Argo CD chart version lives in `platform/apps/argocd.yaml`; the version in the playbook is only for bootstrapping a fresh cluster. The repo is public, so never commit plain Kubernetes Secrets (use Sealed Secrets or SOPS when needed).
+
 ## Workstation setup
 
 All work happens in **WSL (Debian)**, not on the Windows filesystem. Ansible refuses `ansible.cfg` from world-writable `/mnt/c` paths, and SSH rejects keys there.
 
 - Repo: `~/homelab-platform`
-- Tools: Terraform, Ansible (via pipx), kubectl, Helm v3.22.0 (`~/.local/bin`, SHA256-verified)
+- Tools: Terraform, Ansible (via pipx, with `kubernetes==37.0.1` injected for `kubernetes.core.k8s`), kubectl, Helm v3.22.0 (`~/.local/bin`, SHA256-verified)
 - `KUBECONFIG=~/.kube/homelab.yaml` (fetched by the k3s playbook, exported in `~/.bashrc`). Without it kubectl falls back to `~/.kube/config`, which points at an old Docker Desktop cluster
 - SSH key loaded via `keychain`
 
