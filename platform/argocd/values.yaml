@@ -1,0 +1,54 @@
+# Argo CD Helm values (chart argo-cd 10.10.2, Argo CD v3.5.4)
+# Single replicas and tight resources: the whole platform runs on one 16 GB host.
+
+# SSO is not needed; log in with the built-in admin user
+dex:
+  enabled: false
+
+# Not used yet; re-enable when alerts are needed
+notifications:
+  enabled: false
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+server:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+repoServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+applicationSet:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+redis:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      memory: 128Mi

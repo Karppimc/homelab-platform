@@ -60,7 +60,7 @@ Running a platform on a decade-old laptop is a deliberate constraint: it forces 
 | VM provisioning | Ubuntu cloud images + cloud-init | ✅ |
 | Configuration management | Ansible + Ansible Vault | ✅ |
 | Kubernetes | k3s (3 nodes) | ✅ |
-| GitOps | Argo CD | 🔜 |
+| GitOps | Argo CD | 🚧 |
 | Observability | Prometheus, Grafana, Loki | 🔜 |
 | Policy as code | Kyverno | 🔜 |
 | Self-service | Platform CLI / Backstage | 🔜 |
@@ -74,7 +74,9 @@ homelab-platform/
 │       └── proxmox/      # VM provisioning on Proxmox
 ├── ansible/
 │   ├── inventory/        # hosts and group_vars (secrets in Ansible Vault)
-│   └── playbooks/        # k3s installation
+│   └── playbooks/        # k3s installation, Argo CD bootstrap
+├── platform/
+│   └── argocd/           # Argo CD Helm values
 ├── .gitattributes
 ├── .gitignore
 └── README.md
@@ -86,7 +88,7 @@ homelab-platform/
 
 - Proxmox VE host with a cloud-init VM template (ID `9000`)
 - Terraform >= 1.9
-- Ansible and kubectl
+- Ansible, kubectl and Helm 3
 - An SSH key pair (`~/.ssh/id_ed25519.pub`)
 - A Proxmox API token for a dedicated Terraform user (see [Security](#security))
 - An Ansible Vault password file at `~/.ansible-vault-pass`
@@ -123,7 +125,20 @@ export KUBECONFIG=~/.kube/homelab.yaml
 kubectl get nodes -o wide
 ```
 
-The whole environment can be torn down and rebuilt from scratch with `terraform destroy`, `terraform apply` and the playbook.
+### 4. Bootstrap Argo CD
+
+```bash
+cd ansible
+ansible-playbook playbooks/argocd.yml
+```
+
+Installs a pinned Argo CD Helm chart with the values in `platform/argocd/`. The UI is not exposed outside the cluster; reach it with:
+
+```bash
+kubectl -n argocd port-forward svc/argocd-server 8080:443
+```
+
+The whole environment can be torn down and rebuilt from scratch with `terraform destroy`, `terraform apply` and the playbooks.
 
 ## Security
 
@@ -144,6 +159,8 @@ Security is treated as a platform feature, not an afterthought.
 | ext4 + LVM-thin instead of ZFS | ZFS write amplification is a poor fit for a consumer QLC SSD |
 | k3s instead of kubeadm | CNCF-conformant Kubernetes with a fraction of the control-plane overhead; on 16 GB of RAM the savings go to observability and platform workloads instead |
 | Terraform for VMs, Ansible for node configuration | Each tool does what it is best at: Terraform manages infrastructure lifecycle and state, Ansible handles idempotent OS and software configuration |
+| Argo CD bootstrapped by Ansible | Argo CD cannot install itself, so Ansible does the first Helm install; after that Argo CD manages platform components from Git |
+| Lean Argo CD install | Dex and notifications disabled, single replicas and memory limits on every component; HA brings nothing on a single physical host |
 | Pinned versions everywhere | Providers, k3s and (later) charts and images are pinned, so a rebuild produces the same platform as last time |
 | Separate production host | A broken experiment should never take down a live site |
 | `.home.arpa` for internal names | Reserved for home networks (RFC 8375), so it never collides with a real domain |

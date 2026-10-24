@@ -36,12 +36,14 @@ The production website (karppimc.com) runs on a separate Raspberry Pi and is **o
 
 ```
 infra/terraform/proxmox/   Terraform: VMs on Proxmox (bpg/proxmox provider)
-ansible/                   Ansible: k3s installation
+ansible/                   Ansible: k3s installation, Argo CD bootstrap
   ansible.cfg
   inventory/hosts.yml
   inventory/group_vars/k3s_cluster/vars.yml
   inventory/group_vars/k3s_cluster/vault.yml   (Ansible Vault, encrypted)
   playbooks/k3s.yml
+  playbooks/argocd.yml     (runs on localhost via kubeconfig; chart version pinned here)
+platform/argocd/values.yaml  Argo CD Helm values (also read by Argo CD once it self-manages)
 README.md                  Public project description and roadmap
 CLAUDE.md                  This file
 ```
@@ -53,8 +55,8 @@ Note: `group_vars` must live next to the inventory (or the playbook), otherwise 
 All work happens in **WSL (Debian)**, not on the Windows filesystem. Ansible refuses `ansible.cfg` from world-writable `/mnt/c` paths, and SSH rejects keys there.
 
 - Repo: `~/homelab-platform`
-- Tools: Terraform, Ansible (via pipx), kubectl
-- `KUBECONFIG=~/.kube/homelab.yaml` (fetched by the k3s playbook)
+- Tools: Terraform, Ansible (via pipx), kubectl, Helm v3.22.0 (`~/.local/bin`, SHA256-verified)
+- `KUBECONFIG=~/.kube/homelab.yaml` (fetched by the k3s playbook, exported in `~/.bashrc`). Without it kubectl falls back to `~/.kube/config`, which points at an old Docker Desktop cluster
 - SSH key loaded via `keychain`
 
 ## Common commands
@@ -69,13 +71,17 @@ terraform apply
 cd ansible
 ansible all -m ping
 ansible-playbook playbooks/k3s.yml
+ansible-playbook playbooks/argocd.yml
+
+# Argo CD UI (https://localhost:8080, user admin, password in password manager)
+kubectl -n argocd port-forward svc/argocd-server 8080:443
 
 # Verify
 kubectl get nodes -o wide
 kubectl get pods -A
 ```
 
-Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook playbooks/k3s.yml`.
+Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook playbooks/k3s.yml` → `ansible-playbook playbooks/argocd.yml`. After a rebuild the Argo CD admin password is regenerated in `argocd-initial-admin-secret`.
 
 ## Secrets – rules
 
@@ -105,7 +111,7 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - [x] Phase 0 – Foundations: Proxmox host, networking, repo
 - [x] Phase 1 – Infrastructure as code: Terraform user, cloud-init template, VM provisioning
 - [x] Phase 2 – Kubernetes: 3-node k3s cluster via Terraform + Ansible
-- [ ] **Phase 3 – GitOps (next):** Argo CD, app-of-apps
+- [ ] **Phase 3 – GitOps (in progress):** Argo CD installed (chart 10.10.2 / v3.5.4); next: app-of-apps, Argo CD self-management
 - [ ] Phase 4 – Observability: Prometheus, Grafana, Loki
 - [ ] Phase 5 – Policy as code: Kyverno
 - [ ] Phase 6 – Golden path service template + CI

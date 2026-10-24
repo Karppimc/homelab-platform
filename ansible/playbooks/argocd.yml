@@ -1,0 +1,24 @@
+# Bootstrap Argo CD into the cluster. After this, Argo CD manages itself from Git.
+- name: Install Argo CD
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    argocd_chart_version: "10.10.2"
+    argocd_namespace: argocd
+    argocd_values: "{{ playbook_dir }}/../../platform/argocd/values.yaml"
+    kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/homelab.yaml"
+  tasks:
+    - name: Install or upgrade Argo CD Helm release
+      kubernetes.core.helm:
+        name: argocd
+        chart_ref: argo-cd
+        chart_repo_url: https://argoproj.github.io/argo-helm
+        chart_version: "{{ argocd_chart_version }}"
+        release_namespace: "{{ argocd_namespace }}"
+        create_namespace: true
+        values_files:
+          - "{{ argocd_values }}"
+        kubeconfig: "{{ kubeconfig }}"
+        wait: true
+        wait_timeout: 10m
