@@ -4,7 +4,7 @@ A self-hosted **Internal Developer Platform** built on repurposed hardware, desi
 
 The goal is not just to run Kubernetes, but to build a platform where a developer can ship a new service through a paved road, and get monitoring, security guardrails and deployment automation without manual work.
 
-> **Status:** Phase 3 (GitOps) complete: Argo CD deploys the platform, including itself, from this repository. See the [roadmap](#roadmap).
+> **Status:** Phase 4 (observability) complete: metrics, logs and dashboards for every workload, all deployed through GitOps. See the [roadmap](#roadmap).
 
 ---
 
@@ -19,7 +19,8 @@ flowchart LR
         tpl[Ubuntu 24.04<br/>cloud-init template]
         subgraph k3s[k3s cluster · 1 control plane + 2 workers]
             argo[Argo CD<br/>app-of-apps]
-            apps[Platform components<br/>and workloads]
+            apps[Workloads<br/>e.g. podinfo]
+            obs[Observability<br/>Prometheus · Loki · Grafana]
         end
     end
 
@@ -31,6 +32,8 @@ flowchart LR
     tpl -. clone .-> k3s
     argo -- pull manifests --> gh
     argo -- sync and self-heal --> apps
+    argo -- sync and self-heal --> obs
+    apps -. metrics via ServiceMonitor<br/>logs via Alloy .-> obs
 ```
 
 The production website runs on a separate Raspberry Pi and is intentionally kept out of this platform. Experimentation and production do not share infrastructure.
@@ -57,7 +60,7 @@ Running a platform on a decade-old laptop is a deliberate constraint: it forces 
 | Configuration management | Ansible + Ansible Vault | ✅ |
 | Kubernetes | k3s (3 nodes) | ✅ |
 | GitOps | Argo CD | ✅ |
-| Observability | Prometheus, Grafana, Loki | 🚧 |
+| Observability | Prometheus, Grafana, Loki, Alloy | ✅ |
 | Policy as code | Kyverno | 🔜 |
 | Self-service | Platform CLI / Backstage | 🔜 |
 
@@ -186,7 +189,7 @@ Detailed Architecture Decision Records will live in `docs/adr/`.
 - [x] **Phase 1 – Infrastructure as code:** Terraform user, cloud-init template, VM provisioning
 - [x] **Phase 2 – Kubernetes:** 3-node k3s cluster provisioned from code
 - [x] **Phase 3 – GitOps:** Argo CD app-of-apps managing all platform components
-- [ ] **Phase 4 – Observability by default:** Prometheus, Grafana and Loki; every service gets metrics and logs automatically
+- [x] **Phase 4 – Observability by default:** Prometheus, Grafana and Loki; every service gets metrics and logs automatically
 - [ ] **Phase 5 – Policy as code:** Kyverno guardrails (resource limits, no `latest` tags, no root containers)
 - [ ] **Phase 6 – Golden path:** service template with Dockerfile, manifests, CI pipeline and health checks
 - [ ] **Phase 7 – Self-service:** one command to create a new service, repository and deployment

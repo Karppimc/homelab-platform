@@ -127,8 +127,8 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - [x] Phase 1 – Infrastructure as code: Terraform user, cloud-init template, VM provisioning
 - [x] Phase 2 – Kubernetes: 3-node k3s cluster via Terraform + Ansible
 - [x] Phase 3 – GitOps: Argo CD (chart 10.10.2 / v3.5.4), app-of-apps, self-management, podinfo demo, UI via Traefik Ingress
-- [ ] **Phase 4 – Observability (in progress):** kube-prometheus-stack 92.3.0, Loki 7.3.0 (single binary), Alloy 1.13.1; next: podinfo ServiceMonitor
-- [ ] Phase 5 – Policy as code: Kyverno
+- [x] Phase 4 – Observability: kube-prometheus-stack 92.3.0, Loki 7.3.0 (single binary), Alloy 1.13.1, podinfo ServiceMonitor
+- [ ] **Phase 5 – Policy as code (next):** Kyverno
 - [ ] Phase 6 – Golden path service template + CI
 - [ ] Phase 7 – Self-service CLI / Backstage
 
@@ -138,3 +138,6 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - Ingress TLS uses Traefik's self-signed default certificate → cert-manager with a local CA (the Argo CD Ingress already expects Secret `argocd-server-tls`)
 - `*.home.arpa` names resolve only via the Windows hosts file → proper LAN DNS (router firmware or in-cluster DNS) later
 - The k3s control plane is not tainted, so ordinary workloads can land on it (it reached 55 % memory with Prometheus there). Heavy workloads get a `node-role.kubernetes.io/control-plane: DoesNotExist` node affinity; consider a proper taint via the k3s playbook later
+- `local-path` volumes are pinned to one node (Prometheus on k3s-worker-2, Loki on k3s-worker-1): if that node is lost, so is its data, and moving the pod means deleting the PVC → replicated storage (e.g. Longhorn) if data ever matters
+- Argo CD memory limits were sized for an empty cluster and have been raised twice (controller 1Gi, repo-server 512Mi) → re-check them when Kyverno and later components are added
+- Argo CD polls GitHub every ~3 min; for an immediate sync use Refresh in the UI (a GitHub webhook would need a public endpoint)
