@@ -16,12 +16,13 @@ configs:
 
 controller:
   replicas: 1
+  # Caches every managed resource; 512Mi was OOMKilled once kube-prometheus-stack was added
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
+      memory: 384Mi
     limits:
-      memory: 512Mi
+      memory: 1Gi
 
 server:
   replicas: 1
