@@ -119,8 +119,8 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - [x] Phase 0 – Foundations: Proxmox host, networking, repo
 - [x] Phase 1 – Infrastructure as code: Terraform user, cloud-init template, VM provisioning
 - [x] Phase 2 – Kubernetes: 3-node k3s cluster via Terraform + Ansible
-- [ ] **Phase 3 – GitOps (in progress):** Argo CD installed (chart 10.10.2 / v3.5.4); next: app-of-apps, Argo CD self-management
-- [ ] Phase 4 – Observability: Prometheus, Grafana, Loki
+- [x] Phase 3 – GitOps: Argo CD (chart 10.10.2 / v3.5.4), app-of-apps, self-management, podinfo demo, UI via Traefik Ingress
+- [ ] **Phase 4 – Observability (next):** Prometheus, Grafana, Loki
 - [ ] Phase 5 – Policy as code: Kyverno
 - [ ] Phase 6 – Golden path service template + CI
 - [ ] Phase 7 – Self-service CLI / Backstage
@@ -128,3 +128,6 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 ## Known gaps / TODO
 
 - Terraform state is local → move to a remote backend before multiple people run Terraform
+- Ingress TLS uses Traefik's self-signed default certificate → cert-manager with a local CA (the Argo CD Ingress already expects Secret `argocd-server-tls`)
+- `*.home.arpa` names resolve only via the Windows hosts file → proper LAN DNS (router firmware or in-cluster DNS) later
+- Control-plane memory grew from ~820 Mi to ~1.4 Gi during Phase 3 → watch it when adding the observability stack

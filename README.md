@@ -4,7 +4,7 @@ A self-hosted **Internal Developer Platform** built on repurposed hardware, desi
 
 The goal is not just to run Kubernetes, but to build a platform where a developer can ship a new service through a paved road, and get monitoring, security guardrails and deployment automation without manual work.
 
-> **Status:** Phase 2 (Kubernetes) complete: a 3-node k3s cluster provisioned entirely from code. See the [roadmap](#roadmap).
+> **Status:** Phase 3 (GitOps) complete: Argo CD deploys the platform, including itself, from this repository. See the [roadmap](#roadmap).
 
 ---
 
@@ -17,24 +17,20 @@ flowchart LR
 
     subgraph pve[Proxmox VE · Lenovo Y50-70]
         tpl[Ubuntu 24.04<br/>cloud-init template]
-        subgraph k3s[k3s cluster]
-            cp[k3s-cp-1<br/>control plane]
-            w1[k3s-worker-1]
-            w2[k3s-worker-2]
+        subgraph k3s[k3s cluster · 1 control plane + 2 workers]
+            argo[Argo CD<br/>app-of-apps]
+            apps[Platform components<br/>and workloads]
         end
     end
 
     pi[Raspberry Pi<br/>production site<br/>out of scope]
 
     dev -- terraform apply<br/>API token --> pve
-    dev -- ansible-playbook<br/>SSH --> k3s
-    dev -- kubectl<br/>:6443 --> cp
+    dev -- ansible-playbook<br/>bootstrap --> k3s
     dev -- git push --> gh
-    tpl -. clone .-> cp
-    tpl -. clone .-> w1
-    tpl -. clone .-> w2
-    w1 -- join --> cp
-    w2 -- join --> cp
+    tpl -. clone .-> k3s
+    argo -- pull manifests --> gh
+    argo -- sync and self-heal --> apps
 ```
 
 The production website runs on a separate Raspberry Pi and is intentionally kept out of this platform. Experimentation and production do not share infrastructure.
@@ -60,7 +56,7 @@ Running a platform on a decade-old laptop is a deliberate constraint: it forces 
 | VM provisioning | Ubuntu cloud images + cloud-init | ✅ |
 | Configuration management | Ansible + Ansible Vault | ✅ |
 | Kubernetes | k3s (3 nodes) | ✅ |
-| GitOps | Argo CD | 🚧 |
+| GitOps | Argo CD | ✅ |
 | Observability | Prometheus, Grafana, Loki | 🔜 |
 | Policy as code | Kyverno | 🔜 |
 | Self-service | Platform CLI / Backstage | 🔜 |
@@ -178,7 +174,7 @@ Detailed Architecture Decision Records will live in `docs/adr/`.
 - [x] **Phase 0 – Foundations:** Proxmox host, networking, repository
 - [x] **Phase 1 – Infrastructure as code:** Terraform user, cloud-init template, VM provisioning
 - [x] **Phase 2 – Kubernetes:** 3-node k3s cluster provisioned from code
-- [ ] **Phase 3 – GitOps:** Argo CD app-of-apps managing all platform components
+- [x] **Phase 3 – GitOps:** Argo CD app-of-apps managing all platform components
 - [ ] **Phase 4 – Observability by default:** Prometheus, Grafana and Loki; every service gets metrics and logs automatically
 - [ ] **Phase 5 – Policy as code:** Kyverno guardrails (resource limits, no `latest` tags, no root containers)
 - [ ] **Phase 6 – Golden path:** service template with Dockerfile, manifests, CI pipeline and health checks
