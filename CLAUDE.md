@@ -47,6 +47,7 @@ platform/                  GitOps: everything here is deployed by Argo CD from G
   bootstrap/root.yaml      root Application, applied by the argocd playbook
   apps/                    one Application per component (argocd.yaml = self-management)
   argocd/values.yaml       Argo CD Helm values
+  demo/values.yaml         podinfo demo app values (namespace demo)
 README.md                  Public project description and roadmap
 CLAUDE.md                  This file
 ```

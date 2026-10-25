@@ -78,7 +78,8 @@ homelab-platform/
 ├── platform/
 │   ├── bootstrap/        # root Application (app-of-apps), applied once
 │   ├── apps/             # one Argo CD Application per platform component
-│   └── argocd/           # Argo CD Helm values
+│   ├── argocd/           # Argo CD Helm values
+│   └── demo/             # podinfo demo app values
 ├── .gitattributes
 ├── .gitignore
 └── README.md

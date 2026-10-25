@@ -1,0 +1,31 @@
+# Demo workload (podinfo) proving the GitOps loop: change platform/demo/values.yaml,
+# push, and Argo CD applies it. Deleting this file removes the app and its resources.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://stefanprodan.github.io/podinfo
+      chart: podinfo
+      targetRevision: 6.15.0
+      helm:
+        releaseName: podinfo
+        valueFiles:
+          - $values/platform/demo/values.yaml
+    - repoURL: https://github.com/karppimc/homelab-platform.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
