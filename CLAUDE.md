@@ -137,4 +137,4 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - Terraform state is local → move to a remote backend before multiple people run Terraform
 - Ingress TLS uses Traefik's self-signed default certificate → cert-manager with a local CA (the Argo CD Ingress already expects Secret `argocd-server-tls`)
 - `*.home.arpa` names resolve only via the Windows hosts file → proper LAN DNS (router firmware or in-cluster DNS) later
-- Control-plane memory grew from ~820 Mi to ~1.4 Gi during Phase 3 → watch it when adding the observability stack
+- The k3s control plane is not tainted, so ordinary workloads can land on it (it reached 55 % memory with Prometheus there). Heavy workloads get a `node-role.kubernetes.io/control-plane: DoesNotExist` node affinity; consider a proper taint via the k3s playbook later
