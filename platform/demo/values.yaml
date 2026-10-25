@@ -8,3 +8,7 @@ resources:
     memory: 32Mi
   limits:
     memory: 64Mi
+
+serviceMonitor:
+  enabled: true
+
