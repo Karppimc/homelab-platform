@@ -95,6 +95,12 @@ grafana:
     existingSecret: grafana-admin
     userKey: admin-user
     passwordKey: admin-password
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      url: http://loki.monitoring.svc:3100
+      access: proxy
   # Dashboards and data sources are provisioned from code; no persistent volume needed
   persistence:
     enabled: false

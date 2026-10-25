@@ -76,7 +76,7 @@ homelab-platform/
 │   ├── apps/             # one Argo CD Application per platform component
 │   ├── argocd/           # Argo CD Helm values
 │   ├── demo/             # podinfo demo app values
-│   └── monitoring/       # kube-prometheus-stack values
+│   └── monitoring/       # kube-prometheus-stack, Loki and Alloy values
 ├── .gitattributes
 ├── .gitignore
 └── README.md
@@ -169,6 +169,8 @@ Security is treated as a platform feature, not an afterthought.
 | Argo CD bootstrapped by Ansible | Argo CD cannot install itself, so Ansible does the first Helm install; after that Argo CD manages platform components from Git |
 | App-of-apps | A single root Application watches `platform/apps/`; adding a component is a Git commit, not a manual `kubectl apply` |
 | kube-prometheus-stack over lighter alternatives | The de facto standard for Kubernetes metrics, with ready-made dashboards and alerts; the cluster has room for it, unlike in later phases |
+| Loki in single-binary mode on the filesystem | One pod, no object storage or memcached caches; the scalable modes cost more memory than the whole log volume justifies here |
+| Few, stable log labels | Alloy attaches only namespace, pod, container, node and app; anything high-cardinality stays in the log line to keep Loki's index small |
 | Cluster-wide ServiceMonitor discovery | Prometheus picks up monitors from any namespace, so a service opts into monitoring by shipping a ServiceMonitor, with no change to the monitoring stack |
 | Generated secrets instead of committed ones | The repo is public; Ansible creates credentials once in the cluster until Sealed Secrets or SOPS is introduced |
 | Lean Argo CD install | Dex and notifications disabled, single replicas and memory limits on every component; HA brings nothing on a single physical host |

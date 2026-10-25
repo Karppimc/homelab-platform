@@ -1,0 +1,76 @@
+# Loki Helm values (chart 7.3.0)
+# Single binary with filesystem storage: one pod, no object store, no caches.
+# Enough for a homelab; scaling out would mean SimpleScalable mode and S3-compatible storage.
+
+deploymentMode: SingleBinary
+
+loki:
+  # Single tenant; no X-Scope-OrgID header needed
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: "2026-10-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  limits_config:
+    retention_period: 168h
+  compactor:
+    retention_enabled: true
+    delete_request_store: filesystem
+
+singleBinary:
+  replicas: 1
+  # Keep off the untainted k3s control plane
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: DoesNotExist
+  persistence:
+    enabled: true
+    storageClass: local-path
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 512Mi
+
+# Components used only by the scalable deployment modes
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# Memcached caches would cost more memory than Loki itself at this scale
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# Grafana and Alloy talk to the Loki service directly
+gateway:
+  enabled: false
+
+# Loads alerting rules from ConfigMaps; log-based alerting is not used yet
+sidecar:
+  rules:
+    enabled: false
+
+lokiCanary:
+  enabled: false
+test:
+  enabled: false

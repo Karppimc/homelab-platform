@@ -49,7 +49,7 @@ platform/                  GitOps: everything here is deployed by Argo CD from G
   apps/                    one Application per component (argocd.yaml = self-management)
   argocd/values.yaml       Argo CD Helm values
   demo/values.yaml         podinfo demo app values (namespace demo)
-  monitoring/              kube-prometheus-stack values (namespace monitoring)
+  monitoring/              kube-prometheus-stack, Loki and Alloy values (namespace monitoring)
 README.md                  Public project description and roadmap
 CLAUDE.md                  This file
 ```
@@ -127,7 +127,7 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - [x] Phase 1 – Infrastructure as code: Terraform user, cloud-init template, VM provisioning
 - [x] Phase 2 – Kubernetes: 3-node k3s cluster via Terraform + Ansible
 - [x] Phase 3 – GitOps: Argo CD (chart 10.10.2 / v3.5.4), app-of-apps, self-management, podinfo demo, UI via Traefik Ingress
-- [ ] **Phase 4 – Observability (in progress):** kube-prometheus-stack 92.3.0 added; next: Loki + Alloy, podinfo ServiceMonitor
+- [ ] **Phase 4 – Observability (in progress):** kube-prometheus-stack 92.3.0, Loki 7.3.0 (single binary), Alloy 1.13.1; next: podinfo ServiceMonitor
 - [ ] Phase 5 – Policy as code: Kyverno
 - [ ] Phase 6 – Golden path service template + CI
 - [ ] Phase 7 – Self-service CLI / Backstage
