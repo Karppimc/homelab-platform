@@ -41,12 +41,14 @@ server:
 
 repoServer:
   replicas: 1
+  # Idles around 30Mi but renders several charts at once after a push;
+  # 256Mi was OOMKilled when the Loki and Alloy charts were added
   resources:
     requests:
       cpu: 50m
       memory: 128Mi
     limits:
-      memory: 256Mi
+      memory: 512Mi
 
 applicationSet:
   replicas: 1
