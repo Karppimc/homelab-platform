@@ -57,7 +57,7 @@ Running a platform on a decade-old laptop is a deliberate constraint: it forces 
 | Configuration management | Ansible + Ansible Vault | ✅ |
 | Kubernetes | k3s (3 nodes) | ✅ |
 | GitOps | Argo CD | ✅ |
-| Observability | Prometheus, Grafana, Loki | 🔜 |
+| Observability | Prometheus, Grafana, Loki | 🚧 |
 | Policy as code | Kyverno | 🔜 |
 | Self-service | Platform CLI / Backstage | 🔜 |
 
@@ -75,7 +75,8 @@ homelab-platform/
 │   ├── bootstrap/        # root Application (app-of-apps), applied once
 │   ├── apps/             # one Argo CD Application per platform component
 │   ├── argocd/           # Argo CD Helm values
-│   └── demo/             # podinfo demo app values
+│   ├── demo/             # podinfo demo app values
+│   └── monitoring/       # kube-prometheus-stack values
 ├── .gitattributes
 ├── .gitignore
 └── README.md
@@ -124,12 +125,15 @@ export KUBECONFIG=~/.kube/homelab.yaml
 kubectl get nodes -o wide
 ```
 
-### 4. Bootstrap Argo CD
+### 4. Bootstrap secrets and Argo CD
 
 ```bash
 cd ansible
+ansible-playbook playbooks/bootstrap-secrets.yml
 ansible-playbook playbooks/argocd.yml
 ```
+
+`bootstrap-secrets.yml` generates in-cluster credentials (such as the Grafana admin password) once, so they never touch Git.
 
 Installs a pinned Argo CD Helm chart with the values in `platform/argocd/` and applies the root Application. From then on Argo CD deploys everything under `platform/apps/` from Git, including its own upgrades.
 
@@ -138,6 +142,8 @@ The UI is published on the LAN only, through Traefik at `https://argocd.home.arp
 ```bash
 kubectl -n argocd port-forward svc/argocd-server 8080:80   # http://localhost:8080
 ```
+
+Grafana is published the same way at `https://grafana.home.arpa`.
 
 The whole environment can be torn down and rebuilt from scratch with `terraform destroy`, `terraform apply` and the playbooks.
 
@@ -162,6 +168,9 @@ Security is treated as a platform feature, not an afterthought.
 | Terraform for VMs, Ansible for node configuration | Each tool does what it is best at: Terraform manages infrastructure lifecycle and state, Ansible handles idempotent OS and software configuration |
 | Argo CD bootstrapped by Ansible | Argo CD cannot install itself, so Ansible does the first Helm install; after that Argo CD manages platform components from Git |
 | App-of-apps | A single root Application watches `platform/apps/`; adding a component is a Git commit, not a manual `kubectl apply` |
+| kube-prometheus-stack over lighter alternatives | The de facto standard for Kubernetes metrics, with ready-made dashboards and alerts; the cluster has room for it, unlike in later phases |
+| Cluster-wide ServiceMonitor discovery | Prometheus picks up monitors from any namespace, so a service opts into monitoring by shipping a ServiceMonitor, with no change to the monitoring stack |
+| Generated secrets instead of committed ones | The repo is public; Ansible creates credentials once in the cluster until Sealed Secrets or SOPS is introduced |
 | Lean Argo CD install | Dex and notifications disabled, single replicas and memory limits on every component; HA brings nothing on a single physical host |
 | Pinned versions everywhere | Providers, k3s and (later) charts and images are pinned, so a rebuild produces the same platform as last time |
 | Separate production host | A broken experiment should never take down a live site |
