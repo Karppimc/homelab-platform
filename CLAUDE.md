@@ -79,8 +79,10 @@ ansible all -m ping
 ansible-playbook playbooks/k3s.yml
 ansible-playbook playbooks/argocd.yml
 
-# Argo CD UI (https://localhost:8080, user admin, password in password manager)
-kubectl -n argocd port-forward svc/argocd-server 8080:443
+# Argo CD UI: https://argocd.home.arpa (Windows hosts file → 192.168.1.230),
+# user admin, password in password manager. TLS ends at Traefik (server.insecure).
+# Fallback if the Ingress is broken:
+kubectl -n argocd port-forward svc/argocd-server 8080:80   # http://localhost:8080
 
 # Verify
 kubectl get nodes -o wide

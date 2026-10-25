@@ -9,6 +9,11 @@ dex:
 notifications:
   enabled: false
 
+configs:
+  params:
+    # Traefik terminates TLS; Argo CD serves plain HTTP inside the cluster
+    server.insecure: true
+
 controller:
   replicas: 1
   resources:
@@ -20,6 +25,12 @@ controller:
 
 server:
   replicas: 1
+  # LAN only; the hostname resolves via local hosts files, not public DNS
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hostname: argocd.home.arpa
+    tls: true
   resources:
     requests:
       cpu: 50m

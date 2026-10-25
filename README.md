@@ -135,10 +135,12 @@ cd ansible
 ansible-playbook playbooks/argocd.yml
 ```
 
-Installs a pinned Argo CD Helm chart with the values in `platform/argocd/` and applies the root Application. From then on Argo CD deploys everything under `platform/apps/` from Git, including its own upgrades. The UI is not exposed outside the cluster; reach it with:
+Installs a pinned Argo CD Helm chart with the values in `platform/argocd/` and applies the root Application. From then on Argo CD deploys everything under `platform/apps/` from Git, including its own upgrades.
+
+The UI is published on the LAN only, through Traefik at `https://argocd.home.arpa`. Point the name at any node IP in your hosts file (for example `192.168.1.230 argocd.home.arpa`). As a fallback that bypasses the Ingress:
 
 ```bash
-kubectl -n argocd port-forward svc/argocd-server 8080:443
+kubectl -n argocd port-forward svc/argocd-server 8080:80   # http://localhost:8080
 ```
 
 The whole environment can be torn down and rebuilt from scratch with `terraform destroy`, `terraform apply` and the playbooks.
