@@ -140,4 +140,5 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - The k3s control plane is not tainted, so ordinary workloads can land on it (it reached 55 % memory with Prometheus there). Heavy workloads get a `node-role.kubernetes.io/control-plane: DoesNotExist` node affinity; consider a proper taint via the k3s playbook later
 - `local-path` volumes are pinned to one node (Prometheus on k3s-worker-2, Loki on k3s-worker-1): if that node is lost, so is its data, and moving the pod means deleting the PVC → replicated storage (e.g. Longhorn) if data ever matters
 - Argo CD memory limits were sized for an empty cluster and have been raised twice (controller 1Gi, repo-server 512Mi) → re-check them when Kyverno and later components are added
+- Alertmanager has no receivers, so alerts (e.g. OOMKilled restarts) reach nobody → add a receiver (email, Discord or similar); until then check `restartCount` and `lastState.terminated.reason` by hand. Short OOM spikes do not show in Prometheus memory graphs (30 s scrape interval)
 - Argo CD polls GitHub every ~3 min; for an immediate sync use Refresh in the UI (a GitHub webhook would need a public endpoint)

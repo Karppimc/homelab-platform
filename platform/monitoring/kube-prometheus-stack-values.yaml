@@ -120,9 +120,10 @@ grafana:
         memory: 48Mi
       limits:
         memory: 128Mi
+  # Idles around 300Mi; large Explore queries (hundreds of series) were OOMKilled at 384Mi
   resources:
     requests:
       cpu: 50m
-      memory: 128Mi
+      memory: 256Mi
     limits:
-      memory: 384Mi
+      memory: 768Mi
