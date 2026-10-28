@@ -12,3 +12,10 @@ resources:
 serviceMonitor:
   enabled: true
 
+podSecurityContext:
+  runAsNonRoot: true
+  # The image sets USER app (by name), which the kubelet cannot verify as non-root;
+  # pin the numeric ids the image already uses
+  runAsUser: 100
+  runAsGroup: 101
+

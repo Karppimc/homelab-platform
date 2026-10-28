@@ -65,6 +65,15 @@ alertmanager:
         memory: 128Mi
 
 prometheusOperator:
+  # Sidecar and init container the operator injects into Prometheus and Alertmanager;
+  # without this they run with no memory request or limit
+  prometheusConfigReloader:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        memory: 64Mi
   resources:
     requests:
       cpu: 50m

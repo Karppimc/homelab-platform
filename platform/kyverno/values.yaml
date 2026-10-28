@@ -4,8 +4,8 @@
 
 admissionController:
   replicas: 1
-  # Keep off the untainted k3s control plane, which ran short of memory once
-  # the Kyverno CRDs were loaded into the API server
+  # Keep off the control plane, which ran short of memory once the Kyverno CRDs
+  # were loaded into the API server (second guard next to the control-plane taint)
   nodeAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
@@ -24,6 +24,13 @@ reportsController:
   replicas: 1
   serviceMonitor:
     enabled: true
+
+# Exceptions are only honoured in the kyverno namespace, which only platform
+# admins can write to; application teams cannot exempt themselves
+features:
+  policyExceptions:
+    enabled: true
+    namespace: kyverno
 
 # Deletes resources on a schedule (ClusterCleanupPolicy); not used here
 cleanupController:

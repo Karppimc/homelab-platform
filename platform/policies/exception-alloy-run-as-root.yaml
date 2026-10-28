@@ -1,0 +1,20 @@
+# Alloy tails container logs from /var/log/pods on each node. On k3s that directory
+# is 750 root:root and the log files 640 root:root, so a non-root collector cannot
+# read them. Exempt only the Alloy pods in the monitoring namespace, and only from
+# the runAsNonRoot policy; memory limits and pinned images still apply.
+apiVersion: policies.kyverno.io/v1
+kind: PolicyException
+metadata:
+  name: alloy-run-as-root
+  namespace: kyverno
+spec:
+  policyRefs:
+    - kind: ValidatingPolicy
+      name: require-run-as-non-root
+  matchConditions:
+    - name: alloy-in-monitoring
+      expression: >-
+        object.metadata.namespace == 'monitoring' &&
+        object.metadata.?labels[?'app.kubernetes.io/name'].orValue('') == 'alloy'
+  # Show exempted resources as "skip" in PolicyReports instead of hiding them
+  reportResult: skip
