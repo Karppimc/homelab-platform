@@ -65,6 +65,16 @@ alertmanager:
         memory: 128Mi
 
 prometheusOperator:
+  # Helm hook Jobs that create and patch the operator's webhook certificate on every
+  # sync; without limits the require-memory-limits policy would reject them
+  admissionWebhooks:
+    patch:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          memory: 64Mi
   # Sidecar and init container the operator injects into Prometheus and Alertmanager;
   # without this they run with no memory request or limit
   prometheusConfigReloader:
