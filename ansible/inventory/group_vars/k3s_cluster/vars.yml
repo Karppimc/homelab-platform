@@ -1,3 +1,8 @@
 k3s_version: "v1.36.5+k3s1"
 k3s_server_ip: "{{ hostvars[groups['server'][0]]['ansible_host'] }}"
 k3s_kubeconfig_local: "{{ lookup('env', 'HOME') }}/.kube/homelab.yaml"
+# Keep ordinary workloads off the control plane; k3s system components tolerate this taint
+k3s_server_taint:
+  key: CriticalAddonsOnly
+  value: "true"
+  effect: NoExecute

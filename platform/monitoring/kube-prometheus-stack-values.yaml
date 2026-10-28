@@ -81,6 +81,13 @@ kube-state-metrics:
       memory: 128Mi
 
 prometheus-node-exporter:
+  # The chart default only tolerates NoSchedule taints; the control plane is tainted
+  # CriticalAddonsOnly=true:NoExecute, which evicted node-exporter from it
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists
+    - key: CriticalAddonsOnly
+      operator: Exists
   resources:
     requests:
       cpu: 10m

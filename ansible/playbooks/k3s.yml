@@ -11,6 +11,16 @@
   hosts: server
   become: true
   tasks:
+    # k3s applies node-taint only when the node first registers, so this file
+    # covers fresh installs; the taint task at the end covers existing nodes
+    - name: Write k3s server config
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml
+        content: |
+          node-taint:
+            - "{{ k3s_server_taint.key }}={{ k3s_server_taint.value }}:{{ k3s_server_taint.effect }}"
+        mode: "0600"
+
     - name: Install k3s server
       ansible.builtin.shell: |
         set -o pipefail
@@ -30,6 +40,8 @@
       retries: 30
       delay: 5
       changed_when: false
+      # Read-only, so it also runs in --check mode instead of failing its retries
+      check_mode: false
 
 - name: Join agents
   hosts: agent
@@ -68,3 +80,13 @@
       delegate_to: localhost
       become: false
       no_log: true
+
+    - name: Taint control plane
+      kubernetes.core.k8s_taint:
+        kubeconfig: "{{ k3s_kubeconfig_local }}"
+        name: "{{ inventory_hostname }}"
+        taints:
+          - "{{ k3s_server_taint }}"
+        state: present
+      delegate_to: localhost
+      become: false

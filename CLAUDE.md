@@ -27,6 +27,7 @@ A portfolio **Internal Developer Platform** built on repurposed hardware, demons
 
 - k3s version pinned to `v1.36.5+k3s1` in Ansible vars
 - Default k3s components are enabled (Traefik, ServiceLB, local-path, metrics-server)
+- The control plane is tainted `CriticalAddonsOnly=true:NoExecute` (set by the k3s playbook: `config.yaml` for fresh installs, `k8s_taint` for existing nodes). Only k3s system components tolerate it. **DaemonSets that must run on every node (node-exporter, Alloy) need a `CriticalAddonsOnly` toleration**; a toleration limited to `effect: NoSchedule` is not enough. Heavy workloads also keep a control-plane anti node affinity as a second guard. The control plane API server alone uses ~2.3 GiB after the Kyverno CRDs
 - SSH user on all VMs: `santeri` (key-based only)
 - Total RAM budget is tight: ~12 GB for VMs + ~2 GB for the host. Check memory before adding workloads or nodes.
 
@@ -138,7 +139,6 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - Terraform state is local → move to a remote backend before multiple people run Terraform
 - Ingress TLS uses Traefik's self-signed default certificate → cert-manager with a local CA (the Argo CD Ingress already expects Secret `argocd-server-tls`)
 - `*.home.arpa` names resolve only via the Windows hosts file → proper LAN DNS (router firmware or in-cluster DNS) later
-- The k3s control plane is not tainted, so ordinary workloads can land on it (it reached 55 % memory with Prometheus there). Heavy workloads get a `node-role.kubernetes.io/control-plane: DoesNotExist` node affinity; consider a proper taint via the k3s playbook later
 - `local-path` volumes are pinned to one node (Prometheus on k3s-worker-2, Loki on k3s-worker-1): if that node is lost, so is its data, and moving the pod means deleting the PVC → replicated storage (e.g. Longhorn) if data ever matters
 - Argo CD memory limits were sized for an empty cluster and have been raised twice (controller 1Gi, repo-server 512Mi) → re-check them when Kyverno and later components are added
 - Alertmanager has no receivers, so alerts (e.g. OOMKilled restarts) reach nobody → add a receiver (email, Discord or similar); until then check `restartCount` and `lastState.terminated.reason` by hand. Short OOM spikes do not show in Prometheus memory graphs (30 s scrape interval)
