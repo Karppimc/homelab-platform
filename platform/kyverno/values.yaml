@@ -4,6 +4,14 @@
 
 admissionController:
   replicas: 1
+  # Keep off the untainted k3s control plane, which ran short of memory once
+  # the Kyverno CRDs were loaded into the API server
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: node-role.kubernetes.io/control-plane
+              operator: DoesNotExist
   serviceMonitor:
     enabled: true
 
@@ -20,6 +28,12 @@ reportsController:
 # Deletes resources on a schedule (ClusterCleanupPolicy); not used here
 cleanupController:
   enabled: false
+
+# The kyverno-api subchart (policies.kyverno.io CRDs) renders `labels: {}` by default.
+# The API server drops empty maps, so Argo CD saw these CRDs as permanently OutOfSync.
+kyverno-api:
+  labels:
+    app.kubernetes.io/part-of: kyverno
 
 # Ship the Kyverno dashboard as a ConfigMap; the Grafana sidecar picks it up
 # from any namespace via the grafana_dashboard label

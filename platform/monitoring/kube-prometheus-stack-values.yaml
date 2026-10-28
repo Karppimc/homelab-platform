@@ -120,6 +120,14 @@ grafana:
         memory: 48Mi
       limits:
         memory: 128Mi
+  # Keep off the untainted k3s control plane
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: DoesNotExist
   # Idles around 300Mi; large Explore queries (hundreds of series) were OOMKilled at 384Mi
   resources:
     requests:
