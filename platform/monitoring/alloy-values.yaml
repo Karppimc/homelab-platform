@@ -80,6 +80,12 @@ alloy:
         }
       }
 
+controller:
+  # The control plane is tainted CriticalAddonsOnly=true:NoExecute; collect its logs too
+  tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+
 configReloader:
   resources:
     requests:
