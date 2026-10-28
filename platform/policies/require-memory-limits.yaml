@@ -8,8 +8,11 @@ metadata:
     policies.kyverno.io/title: Require memory requests and limits
     policies.kyverno.io/severity: medium
 spec:
-  # Audit: record violations in PolicyReports. Warn: show them to kubectl and Argo CD.
-  validationActions: [Audit, Warn]
+  # Deny: reject violating resources at admission. Audit: keep recording PolicyReports.
+  # Fail closed: if Kyverno is down, matching resources are rejected rather than
+  # admitted unchecked (kube-system and kyverno are excluded, so the cluster can recover)
+  failurePolicy: Fail
+  validationActions: [Deny, Audit]
   evaluation:
     background:
       enabled: true
