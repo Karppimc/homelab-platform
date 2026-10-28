@@ -61,7 +61,7 @@ Running a platform on a decade-old laptop is a deliberate constraint: it forces 
 | Kubernetes | k3s (3 nodes) | ✅ |
 | GitOps | Argo CD | ✅ |
 | Observability | Prometheus, Grafana, Loki, Alloy | ✅ |
-| Policy as code | Kyverno | 🔜 |
+| Policy as code | Kyverno | 🚧 |
 | Self-service | Platform CLI / Backstage | 🔜 |
 
 ## Repository structure
@@ -79,6 +79,7 @@ homelab-platform/
 │   ├── apps/             # one Argo CD Application per platform component
 │   ├── argocd/           # Argo CD Helm values
 │   ├── demo/             # podinfo demo app values
+│   ├── kyverno/          # Kyverno Helm values
 │   └── monitoring/       # kube-prometheus-stack, Loki and Alloy values
 ├── .gitattributes
 ├── .gitignore

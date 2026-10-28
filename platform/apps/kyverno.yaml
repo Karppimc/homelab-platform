@@ -1,0 +1,31 @@
+# Policy engine: Kyverno admission, background and reports controllers.
+# The policies themselves live in platform/policies/ (separate Application).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://kyverno.github.io/kyverno
+      chart: kyverno
+      targetRevision: 3.9.1
+      helm:
+        releaseName: kyverno
+        valueFiles:
+          - $values/platform/kyverno/values.yaml
+    - repoURL: https://github.com/karppimc/homelab-platform.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # Kyverno CRDs are too large for client-side apply annotations
+      - ServerSideApply=true

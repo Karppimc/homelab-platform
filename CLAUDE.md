@@ -49,6 +49,7 @@ platform/                  GitOps: everything here is deployed by Argo CD from G
   apps/                    one Application per component (argocd.yaml = self-management)
   argocd/values.yaml       Argo CD Helm values
   demo/values.yaml         podinfo demo app values (namespace demo)
+  kyverno/values.yaml      Kyverno Helm values (namespace kyverno)
   monitoring/              kube-prometheus-stack, Loki and Alloy values (namespace monitoring)
 README.md                  Public project description and roadmap
 CLAUDE.md                  This file
@@ -128,7 +129,7 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - [x] Phase 2 – Kubernetes: 3-node k3s cluster via Terraform + Ansible
 - [x] Phase 3 – GitOps: Argo CD (chart 10.10.2 / v3.5.4), app-of-apps, self-management, podinfo demo, UI via Traefik Ingress
 - [x] Phase 4 – Observability: kube-prometheus-stack 92.3.0, Loki 7.3.0 (single binary), Alloy 1.13.1, podinfo ServiceMonitor
-- [ ] **Phase 5 – Policy as code (next):** Kyverno
+- [ ] **Phase 5 – Policy as code (in progress):** Kyverno 3.9.1 (v1.19.1) installed without policies; next: own policies in Audit mode, review PolicyReports, then Enforce with documented exceptions
 - [ ] Phase 6 – Golden path service template + CI
 - [ ] Phase 7 – Self-service CLI / Backstage
 

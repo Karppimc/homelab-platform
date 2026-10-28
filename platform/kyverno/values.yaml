@@ -1,0 +1,27 @@
+# Kyverno Helm values (chart 3.9.1, Kyverno v1.19.1)
+# Single replicas: on one physical host HA adds memory, not availability.
+# The chart's default resource requests and limits are kept; they fit this cluster.
+
+admissionController:
+  replicas: 1
+  serviceMonitor:
+    enabled: true
+
+backgroundController:
+  replicas: 1
+  serviceMonitor:
+    enabled: true
+
+reportsController:
+  replicas: 1
+  serviceMonitor:
+    enabled: true
+
+# Deletes resources on a schedule (ClusterCleanupPolicy); not used here
+cleanupController:
+  enabled: false
+
+# Ship the Kyverno dashboard as a ConfigMap; the Grafana sidecar picks it up
+# from any namespace via the grafana_dashboard label
+grafana:
+  enabled: true
