@@ -4,7 +4,7 @@ A self-hosted **Internal Developer Platform** built on repurposed hardware, desi
 
 The goal is not just to run Kubernetes, but to build a platform where a developer can ship a new service through a paved road, and get monitoring, security guardrails and deployment automation without manual work.
 
-> **Status:** Phase 4 (observability) complete: metrics, logs and dashboards for every workload, all deployed through GitOps. See the [roadmap](#roadmap).
+> **Status:** Phase 5 (policy as code) complete: Kyverno enforces resource limits, pinned images and non-root containers, with every exception documented in Git. See the [roadmap](#roadmap).
 
 ---
 
@@ -21,6 +21,7 @@ flowchart LR
             argo[Argo CD<br/>app-of-apps]
             apps[Workloads<br/>e.g. podinfo]
             obs[Observability<br/>Prometheus · Loki · Grafana]
+            kyv[Kyverno<br/>admission policies]
         end
     end
 
@@ -34,6 +35,7 @@ flowchart LR
     argo -- sync and self-heal --> apps
     argo -- sync and self-heal --> obs
     apps -. metrics via ServiceMonitor<br/>logs via Alloy .-> obs
+    kyv -- admit or deny --> apps
 ```
 
 The production website runs on a separate Raspberry Pi and is intentionally kept out of this platform. Experimentation and production do not share infrastructure.
@@ -61,7 +63,7 @@ Running a platform on a decade-old laptop is a deliberate constraint: it forces 
 | Kubernetes | k3s (3 nodes) | ✅ |
 | GitOps | Argo CD | ✅ |
 | Observability | Prometheus, Grafana, Loki, Alloy | ✅ |
-| Policy as code | Kyverno | 🚧 |
+| Policy as code | Kyverno (CEL ValidatingPolicy) | ✅ |
 | Self-service | Platform CLI / Backstage | 🔜 |
 
 ## Repository structure
@@ -176,6 +178,10 @@ Security is treated as a platform feature, not an afterthought.
 | kube-prometheus-stack over lighter alternatives | The de facto standard for Kubernetes metrics, with ready-made dashboards and alerts; the cluster has room for it, unlike in later phases |
 | Loki in single-binary mode on the filesystem | One pod, no object storage or memcached caches; the scalable modes cost more memory than the whole log volume justifies here |
 | Few, stable log labels | Alloy attaches only namespace, pod, container, node and app; anything high-cardinality stays in the log line to keep Loki's index small |
+| Audit before Enforce | Policies first ran in Audit/Warn mode; every finding was fixed or given an exception before switching to Deny, so enforcement broke nothing. Helm hook Jobs were checked separately because background scans never see them |
+| Narrow, centralised policy exceptions | Exceptions target one policy and one workload (Alloy must run as root to read node log files) and are honoured only in the `kyverno` namespace, so teams cannot exempt themselves |
+| Fail-closed admission | `failurePolicy: Fail`: if Kyverno is down, matching resources are rejected rather than admitted unchecked; `kube-system` and `kyverno` are excluded so the cluster can always recover |
+| CEL ValidatingPolicy over ClusterPolicy | Kyverno 1.19 deprecates ClusterPolicy; CEL is also what Kubernetes' built-in ValidatingAdmissionPolicy uses |
 | Tainted control plane | k3s schedules workloads on its server by default; with 4 GB and a CRD-heavy API server that risks taking down cluster management, so only system components and node agents may run there |
 | Cluster-wide ServiceMonitor discovery | Prometheus picks up monitors from any namespace, so a service opts into monitoring by shipping a ServiceMonitor, with no change to the monitoring stack |
 | Generated secrets instead of committed ones | The repo is public; Ansible creates credentials once in the cluster until Sealed Secrets or SOPS is introduced |
@@ -193,7 +199,7 @@ Detailed Architecture Decision Records will live in `docs/adr/`.
 - [x] **Phase 2 – Kubernetes:** 3-node k3s cluster provisioned from code
 - [x] **Phase 3 – GitOps:** Argo CD app-of-apps managing all platform components
 - [x] **Phase 4 – Observability by default:** Prometheus, Grafana and Loki; every service gets metrics and logs automatically
-- [ ] **Phase 5 – Policy as code:** Kyverno guardrails (resource limits, no `latest` tags, no root containers)
+- [x] **Phase 5 – Policy as code:** Kyverno guardrails (resource limits, no `latest` tags, no root containers)
 - [ ] **Phase 6 – Golden path:** service template with Dockerfile, manifests, CI pipeline and health checks
 - [ ] **Phase 7 – Self-service:** one command to create a new service, repository and deployment
 

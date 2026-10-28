@@ -52,6 +52,7 @@ platform/                  GitOps: everything here is deployed by Argo CD from G
   demo/values.yaml         podinfo demo app values (namespace demo)
   kyverno/values.yaml      Kyverno Helm values (namespace kyverno)
   policies/                Kyverno ValidatingPolicy (policies.kyverno.io/v1, CEL); ClusterPolicy is deprecated in 1.19, do not use it
+                           PolicyExceptions live here too but must use namespace kyverno (only namespace honoured)
   monitoring/              kube-prometheus-stack, Loki and Alloy values (namespace monitoring)
 README.md                  Public project description and roadmap
 CLAUDE.md                  This file
@@ -117,6 +118,8 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - **Idempotency:** playbooks must be safe to re-run (`creates:`, proper modules over raw shell where possible)
 - **Least privilege** for every service account and token
 - Every non-obvious design choice gets a short rationale in the README "Design decisions" table (ADRs planned in `docs/adr/`)
+- **Every workload must pass the Kyverno policies:** memory request + limit on every container (including init and Helm hook containers), pinned image tag, `runAsNonRoot: true` with a numeric `runAsUser` when the image sets `USER` by name. Before adding a chart or changing a policy, render it with `helm template` and check all workloads, **including Helm hook Jobs**: background scans never see hooks, and a rejected hook blocks the whole sync (for Argo CD itself, that means break glass)
+- When triggering a sync by patching `.operation`, pass the app's `syncOptions` too (e.g. `ServerSideApply=true`); otherwise Argo CD falls back to client-side apply and large CRDs fail
 
 ## Working style
 
@@ -131,8 +134,8 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - [x] Phase 2 – Kubernetes: 3-node k3s cluster via Terraform + Ansible
 - [x] Phase 3 – GitOps: Argo CD (chart 10.10.2 / v3.5.4), app-of-apps, self-management, podinfo demo, UI via Traefik Ingress
 - [x] Phase 4 – Observability: kube-prometheus-stack 92.3.0, Loki 7.3.0 (single binary), Alloy 1.13.1, podinfo ServiceMonitor
-- [ ] **Phase 5 – Policy as code (in progress):** Kyverno 3.9.1 (v1.19.1) installed without policies; next: own policies in Audit mode, review PolicyReports, then Enforce with documented exceptions
-- [ ] Phase 6 – Golden path service template + CI
+- [x] Phase 5 – Policy as code: Kyverno 3.9.1 (v1.19.1); require-memory-limits, disallow-latest-tag, require-run-as-non-root enforced (Deny, failurePolicy Fail); one exception (Alloy runs as root); control plane tainted
+- [ ] **Phase 6 – Golden path service template + CI (next)**
 - [ ] Phase 7 – Self-service CLI / Backstage
 
 ## Known gaps / TODO
@@ -141,6 +144,8 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - Ingress TLS uses Traefik's self-signed default certificate → cert-manager with a local CA (the Argo CD Ingress already expects Secret `argocd-server-tls`)
 - `*.home.arpa` names resolve only via the Windows hosts file → proper LAN DNS (router firmware or in-cluster DNS) later
 - `local-path` volumes are pinned to one node (Prometheus on k3s-worker-2, Loki on k3s-worker-1): if that node is lost, so is its data, and moving the pod means deleting the PVC → replicated storage (e.g. Longhorn) if data ever matters
-- Argo CD memory limits were sized for an empty cluster and have been raised twice (controller 1Gi, repo-server 512Mi) → re-check them when Kyverno and later components are added
+- Argo CD memory limits were sized for an empty cluster and have been raised twice (controller 1Gi, repo-server 512Mi); with Kyverno added the controller idles around 460 Mi → re-check when later components are added
+- kube-prometheus-stack admission webhook hook Jobs race with Argo CD hook tracking (`hook-succeeded` deletes the Job before Argo records it: "waiting for deletion of hook" or "Job is missing"). Harmless so far → replace the hook Jobs with cert-manager (`prometheusOperator.admissionWebhooks.certManager`) once cert-manager is installed
+- Policies have no unit tests yet → add `kyverno test` cases (good/bad/edge pods) and run them in CI in Phase 6; the Kyverno CLI download needs to be allowed in Claude Code first
 - Alertmanager has no receivers, so alerts (e.g. OOMKilled restarts) reach nobody → add a receiver (email, Discord or similar); until then check `restartCount` and `lastState.terminated.reason` by hand. Short OOM spikes do not show in Prometheus memory graphs (30 s scrape interval)
 - Argo CD polls GitHub every ~3 min; for an immediate sync use Refresh in the UI (a GitHub webhook would need a public endpoint)
