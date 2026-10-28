@@ -80,6 +80,7 @@ homelab-platform/
 │   ├── argocd/           # Argo CD Helm values
 │   ├── demo/             # podinfo demo app values
 │   ├── kyverno/          # Kyverno Helm values
+│   ├── policies/         # Kyverno ValidatingPolicies (CEL)
 │   └── monitoring/       # kube-prometheus-stack, Loki and Alloy values
 ├── .gitattributes
 ├── .gitignore

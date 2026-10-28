@@ -1,0 +1,37 @@
+# Containers must not run as root: a container escape as root is a much shorter
+# path to the node. Satisfied by runAsNonRoot on the container or the pod.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: require-run-as-non-root
+  annotations:
+    policies.kyverno.io/title: Require runAsNonRoot
+    policies.kyverno.io/severity: high
+spec:
+  # Audit: record violations in PolicyReports. Warn: show them to kubectl and Argo CD.
+  validationActions: [Audit, Warn]
+  evaluation:
+    background:
+      enabled: true
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: [kube-system, kyverno]
+  variables:
+    - name: podNonRoot
+      expression: object.spec.?securityContext.?runAsNonRoot.orValue(false)
+    - name: containers
+      expression: object.spec.containers + object.spec.?initContainers.orValue([])
+  validations:
+    # A container-level setting overrides the pod-level one, in either direction
+    - expression: >-
+        variables.containers.all(c,
+          c.?securityContext.?runAsNonRoot.orValue(variables.podNonRoot) == true)
+      message: Every container must run with securityContext.runAsNonRoot=true, set on the container or the pod.

@@ -51,6 +51,7 @@ platform/                  GitOps: everything here is deployed by Argo CD from G
   argocd/values.yaml       Argo CD Helm values
   demo/values.yaml         podinfo demo app values (namespace demo)
   kyverno/values.yaml      Kyverno Helm values (namespace kyverno)
+  policies/                Kyverno ValidatingPolicy (policies.kyverno.io/v1, CEL); ClusterPolicy is deprecated in 1.19, do not use it
   monitoring/              kube-prometheus-stack, Loki and Alloy values (namespace monitoring)
 README.md                  Public project description and roadmap
 CLAUDE.md                  This file

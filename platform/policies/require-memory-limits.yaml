@@ -1,0 +1,35 @@
+# Every container must declare a memory request and limit, so the scheduler can
+# place it and a leak is OOMKilled instead of starving the node.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: require-memory-limits
+  annotations:
+    policies.kyverno.io/title: Require memory requests and limits
+    policies.kyverno.io/severity: medium
+spec:
+  # Audit: record violations in PolicyReports. Warn: show them to kubectl and Argo CD.
+  validationActions: [Audit, Warn]
+  evaluation:
+    background:
+      enabled: true
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: [kube-system, kyverno]
+  variables:
+    - name: containers
+      expression: object.spec.containers + object.spec.?initContainers.orValue([])
+  validations:
+    - expression: >-
+        variables.containers.all(c,
+          c.?resources.?requests[?'memory'].hasValue() &&
+          c.?resources.?limits[?'memory'].hasValue())
+      message: Every container and init container must set resources.requests.memory and resources.limits.memory.
