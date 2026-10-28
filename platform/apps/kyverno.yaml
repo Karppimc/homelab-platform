@@ -5,6 +5,11 @@ kind: Application
 metadata:
   name: kyverno
   namespace: argocd
+  annotations:
+    # Let the API server compute the diff (dry-run apply). The controller's own
+    # structured-merge diff kept the policies.kyverno.io CRDs OutOfSync even though
+    # `argocd app diff --server-side-diff` showed no difference.
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
 spec:
   project: default
   sources:
