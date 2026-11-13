@@ -97,7 +97,7 @@ homelab-platform/
 ### Prerequisites
 
 - Proxmox VE host with a cloud-init VM template (ID `9000`)
-- Terraform >= 1.9
+- Terraform 1.16 or newer (`~> 1.16`)
 - Ansible (with the `kubernetes` Python library), kubectl and Helm 3
 - An SSH key pair (`~/.ssh/id_ed25519.pub`)
 - A Proxmox API token for a dedicated Terraform user (see [Security](#security))
@@ -108,8 +108,8 @@ homelab-platform/
 ```bash
 cd infra/terraform/proxmox
 
-# Secrets live in a git-ignored file
-echo 'proxmox_api_token = "terraform@pve!provider=<token>"' > terraform.tfvars
+# Secrets live in a git-ignored file: copy the example and fill in the token
+cp terraform.tfvars.example terraform.tfvars
 
 terraform init
 terraform plan
