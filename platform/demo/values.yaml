@@ -18,4 +18,3 @@ podSecurityContext:
   # pin the numeric ids the image already uses
   runAsUser: 100
   runAsGroup: 101
-

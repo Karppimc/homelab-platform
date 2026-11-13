@@ -1,0 +1,27 @@
+# yamllint configuration for the whole repo (run: yamllint .)
+extends: default
+
+ignore: |
+  .ansible/
+  .terraform/
+  # Ansible Vault files are ciphertext, not YAML
+  ansible/inventory/group_vars/k3s_cluster/vault.yml
+
+rules:
+  # 80 is too tight for CEL expressions and explanatory comments
+  line-length:
+    max: 120
+  # Helm values and single-document manifests do not need a leading "---"
+  document-start: disable
+  # Do not read the GitHub Actions "on:" key as a boolean
+  truthy:
+    check-keys: false
+  # Match ansible-lint's yaml rule so both linters agree
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: false
+  braces:
+    max-spaces-inside: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true

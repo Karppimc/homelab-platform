@@ -40,7 +40,7 @@ variable "k3s_nodes" {
   }))
   default = {
     "k3s-cp-1"     = { vm_id = 201, role = "control-plane", ip = "192.168.1.230", cores = 2, memory = 4096, disk = 30 }
-    "k3s-worker-1" = { vm_id = 211, role = "worker",        ip = "192.168.1.231", cores = 3, memory = 4096, disk = 50 }
-    "k3s-worker-2" = { vm_id = 212, role = "worker",        ip = "192.168.1.232", cores = 3, memory = 4096, disk = 50 }
+    "k3s-worker-1" = { vm_id = 211, role = "worker", ip = "192.168.1.231", cores = 3, memory = 4096, disk = 50 }
+    "k3s-worker-2" = { vm_id = 212, role = "worker", ip = "192.168.1.232", cores = 3, memory = 4096, disk = 50 }
   }
 }
