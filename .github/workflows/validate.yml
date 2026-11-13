@@ -1,0 +1,150 @@
+---
+# Static checks for every stack in the repo. Nothing here needs credentials or
+# reaches the homelab: the cluster and Proxmox are not reachable from GitHub.
+#
+# The ruleset on main requires one check: "validate". It passes only when
+# every other job passed, so jobs can be added or renamed without touching the
+# ruleset.
+name: validate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TERRAFORM_VERSION: 1.16.6
+  PYTHON_VERSION: "3.12"
+  ANSIBLE_CORE_VERSION: 2.19.14
+  ANSIBLE_LINT_VERSION: 26.10.1
+  YAMLLINT_VERSION: 1.38.0
+  # Same version as the Kyverno running in the cluster, so CEL is evaluated
+  # the same way
+  KYVERNO_VERSION: v1.19.1
+  KYVERNO_SHA256: b38228f367fc0fdc2b08f4c83ea50ac5f16c60ff8d62d76a66157c33c47b70ae
+  KUBECONFORM_VERSION: v0.8.0
+  KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+  # CRD schemas (Argo CD, Kyverno) come from datreeio/CRDs-catalog, pinned to
+  # a commit
+  CRD_CATALOG_REF: 89c736bdde38b5fecd0f8436ec5f3aa3679a3b86
+
+jobs:
+  terraform:
+    name: terraform
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: infra/terraform/proxmox
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+      # No backend and no variables: validate only needs the provider schema
+      - name: terraform init
+        run: terraform init -backend=false -input=false
+      - name: terraform validate
+        run: terraform validate
+
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install yamllint
+        run: pip install "yamllint==${YAMLLINT_VERSION}"
+      - name: yamllint
+        run: yamllint .
+
+  ansible:
+    name: ansible
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: ansible
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install ansible-lint
+        run: >-
+          pip install
+          "ansible-core==${ANSIBLE_CORE_VERSION}"
+          "ansible-lint==${ANSIBLE_LINT_VERSION}"
+      - name: Install collections
+        run: ansible-galaxy collection install -r requirements.yml
+      # ansible.cfg points at a vault password file that only exists on the
+      # workstation. The syntax check never decrypts vault.yml, so a
+      # placeholder is enough and the real password stays out of GitHub.
+      - name: ansible-lint
+        run: |
+          echo "placeholder-not-a-secret" > "${RUNNER_TEMP}/vault-pass"
+          ANSIBLE_VAULT_PASSWORD_FILE="${RUNNER_TEMP}/vault-pass" ansible-lint
+
+  kubernetes:
+    name: kubernetes
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install kyverno and kubeconform
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -fsSLo kyverno.tar.gz \
+            "https://github.com/kyverno/kyverno/releases/download/${KYVERNO_VERSION}/kyverno-cli_${KYVERNO_VERSION}_linux_x86_64.tar.gz"
+          curl -fsSLo kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          sha256sum -c - <<EOF
+          ${KYVERNO_SHA256}  kyverno.tar.gz
+          ${KUBECONFORM_SHA256}  kubeconform.tar.gz
+          EOF
+          mkdir -p "${RUNNER_TEMP}/bin"
+          tar -xzf kyverno.tar.gz -C "${RUNNER_TEMP}/bin" kyverno
+          tar -xzf kubeconform.tar.gz -C "${RUNNER_TEMP}/bin" kubeconform
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      # Helm values files are not manifests, so only the directories that hold
+      # Kubernetes resources are checked
+      - name: kubeconform
+        run: >-
+          kubeconform -strict -summary
+          -schema-location default
+          -schema-location
+          "https://raw.githubusercontent.com/datreeio/CRDs-catalog/${CRD_CATALOG_REF}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
+          platform/apps platform/bootstrap platform/policies
+      - name: kyverno test
+        run: kyverno test tests/policies
+
+  # The only required check. "if: always()" matters: a skipped job counts as
+  # passed for a required check, so this job must run and fail explicitly when
+  # a dependency failed or was cancelled.
+  validate:
+    name: validate
+    if: always()
+    needs: [terraform, yamllint, ansible, kubernetes]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check job results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: ${RESULTS}"
+          for result in ${RESULTS}; do
+            if [ "${result}" != "success" ]; then
+              echo "::error::A validate job did not succeed"
+              exit 1
+            fi
+          done

@@ -84,6 +84,9 @@ homelab-platform/
 │   ├── kyverno/          # Kyverno Helm values
 │   ├── policies/         # Kyverno ValidatingPolicies (CEL)
 │   └── monitoring/       # kube-prometheus-stack, Loki and Alloy values
+├── tests/
+│   └── policies/         # Kyverno CLI test cases: good, bad and edge-case pods per policy
+├── .github/workflows/    # validate: static checks on every pull request
 ├── .gitattributes
 ├── .gitignore
 └── README.md
@@ -179,6 +182,8 @@ Security is treated as a platform feature, not an afterthought.
 | Loki in single-binary mode on the filesystem | One pod, no object storage or memcached caches; the scalable modes cost more memory than the whole log volume justifies here |
 | Few, stable log labels | Alloy attaches only namespace, pod, container, node and app; anything high-cardinality stays in the log line to keep Loki's index small |
 | Audit before Enforce | Policies first ran in Audit/Warn mode; every finding was fixed or given an exception before switching to Deny, so enforcement broke nothing. Helm hook Jobs were checked separately because background scans never see them |
+| Policies are tested like code | Every policy has good, bad and edge-case pods under `tests/policies/`, run with `kyverno test` in CI using the same Kyverno version as the cluster; a policy change that would let a bad pod through, or widen an exception, fails the pull request |
+| One required CI check | The `validate` workflow runs Terraform, Ansible, YAML and Kubernetes checks as separate jobs, and a final `validate` job passes only if all of them did; branch protection requires that single name, so jobs can change without touching the ruleset. No job needs credentials or network access to the homelab |
 | Narrow, centralised policy exceptions | Exceptions target one policy and one workload (Alloy must run as root to read node log files) and are honoured only in the `kyverno` namespace, so teams cannot exempt themselves |
 | Fail-closed admission | `failurePolicy: Fail`: if Kyverno is down, matching resources are rejected rather than admitted unchecked; `kube-system` and `kyverno` are excluded so the cluster can always recover |
 | CEL ValidatingPolicy over ClusterPolicy | Kyverno 1.19 deprecates ClusterPolicy; CEL is also what Kubernetes' built-in ValidatingAdmissionPolicy uses |
