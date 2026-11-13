@@ -1,0 +1,176 @@
+# Test pods for require-run-as-non-root. Never applied to the cluster: Argo CD
+# only syncs platform/.
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-pod-level
+  namespace: demo
+spec:
+  securityContext:
+    runAsNonRoot: true
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-container-level
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+      securityContext:
+        runAsNonRoot: true
+---
+# Edge: the container-level setting wins over the pod-level one
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-container-overrides-pod
+  namespace: demo
+spec:
+  securityContext:
+    runAsNonRoot: false
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+      securityContext:
+        runAsNonRoot: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-with-init-container
+  namespace: demo
+spec:
+  securityContext:
+    runAsNonRoot: true
+  initContainers:
+    - name: init
+      image: ghcr.io/example/init:1.0.0
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-not-set
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-pod-level-false
+  namespace: demo
+spec:
+  securityContext:
+    runAsNonRoot: false
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+# Edge: the pod says non-root, but the container overrides it
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-container-overrides-pod
+  namespace: demo
+spec:
+  securityContext:
+    runAsNonRoot: true
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+      securityContext:
+        runAsNonRoot: false
+---
+# Edge: only the init container runs as root
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-init-container-overrides-pod
+  namespace: demo
+spec:
+  securityContext:
+    runAsNonRoot: true
+  initContainers:
+    - name: init
+      image: ghcr.io/example/init:1.0.0
+      securityContext:
+        runAsNonRoot: false
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+# Edge: one of two containers has no setting and there is no pod-level default
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-sidecar-not-set
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+      securityContext:
+        runAsNonRoot: true
+    - name: sidecar
+      image: ghcr.io/example/sidecar:1.0.0
+---
+# PolicyException alloy-run-as-root: Alloy in monitoring may run as root
+apiVersion: v1
+kind: Pod
+metadata:
+  name: exception-alloy
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alloy
+spec:
+  containers:
+    - name: alloy
+      image: docker.io/grafana/alloy:v1.0.0
+---
+# Edge: the exception is limited to the monitoring namespace
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-alloy-label-in-other-namespace
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: alloy
+spec:
+  containers:
+    - name: alloy
+      image: docker.io/grafana/alloy:v1.0.0
+---
+# Edge: the exception is limited to Alloy pods
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-other-pod-in-monitoring
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: grafana
+spec:
+  containers:
+    - name: grafana
+      image: docker.io/grafana/grafana:1.0.0
+---
+# Edge: kube-system is excluded by the namespaceSelector
+apiVersion: v1
+kind: Pod
+metadata:
+  name: excluded-kube-system
+  namespace: kube-system
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0

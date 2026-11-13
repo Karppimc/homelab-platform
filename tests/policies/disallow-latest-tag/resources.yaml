@@ -1,0 +1,143 @@
+# Test pods for disallow-latest-tag. Never applied to the cluster: Argo CD
+# only syncs platform/.
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-version-tag
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-digest
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app@sha256:0000000000000000000000000000000000000000000000000000000000000000
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-tag-and-digest
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0@sha256:0000000000000000000000000000000000000000000000000000000000000000
+---
+# Edge: a registry port and a tag
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-registry-port-with-tag
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: registry.example:5000/team/app:1.0.0
+---
+# Edge: the digest pins the image, the tag is ignored by the runtime
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-latest-pinned-by-digest
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:latest@sha256:0000000000000000000000000000000000000000000000000000000000000000
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-latest
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:latest
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-untagged
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-untagged-short-name
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: nginx
+---
+# Edge: the colon belongs to the registry port, not to a tag
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-registry-port-untagged
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: registry.example:5000/team/app
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-registry-port-latest
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: registry.example:5000/team/app:latest
+---
+# Edge: the main container is fine, the init container is not
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-init-container-latest
+  namespace: demo
+spec:
+  initContainers:
+    - name: init
+      image: ghcr.io/example/init:latest
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+# Edge: one of two containers is untagged
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-sidecar-untagged
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+    - name: sidecar
+      image: ghcr.io/example/sidecar
+---
+# Edge: kyverno is excluded by the namespaceSelector
+apiVersion: v1
+kind: Pod
+metadata:
+  name: excluded-kyverno
+  namespace: kyverno
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:latest

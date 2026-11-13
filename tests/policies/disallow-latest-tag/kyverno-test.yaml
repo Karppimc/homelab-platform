@@ -1,0 +1,38 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: disallow-latest-tag
+policies:
+  - ../../../platform/policies/disallow-latest-tag.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: disallow-latest-tag
+    isValidatingPolicy: true
+    kind: Pod
+    result: pass
+    resources:
+      - good-version-tag
+      - good-digest
+      - good-tag-and-digest
+      - good-registry-port-with-tag
+      - good-latest-pinned-by-digest
+  - policy: disallow-latest-tag
+    isValidatingPolicy: true
+    kind: Pod
+    result: fail
+    resources:
+      - bad-latest
+      - bad-untagged
+      - bad-untagged-short-name
+      - bad-registry-port-untagged
+      - bad-registry-port-latest
+      - bad-init-container-latest
+      - bad-sidecar-untagged
+  # Excluded by the namespaceSelector: the policy produces no result at all
+  - policy: disallow-latest-tag
+    isValidatingPolicy: true
+    kind: Pod
+    result: skip
+    resources:
+      - excluded-kyverno
