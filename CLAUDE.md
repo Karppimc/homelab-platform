@@ -65,7 +65,7 @@ CLAUDE.md                  This file
 
 Note: `group_vars` must live next to the inventory (or the playbook), otherwise Ansible silently ignores it.
 
-Argo CD reads `platform/` from GitHub, not from the workstation: **changes take effect only after push**. The Argo CD chart version lives in `platform/apps/argocd.yaml`; the version in the playbook is only for bootstrapping a fresh cluster. The repo is public, so never commit plain Kubernetes Secrets (use Sealed Secrets or SOPS when needed).
+Argo CD reads `platform/` from GitHub `main`, not from the workstation: **changes take effect only after the PR is merged to `main`**. The Argo CD chart version lives in `platform/apps/argocd.yaml`; the version in the playbook is only for bootstrapping a fresh cluster. The repo is public, so never commit plain Kubernetes Secrets (use Sealed Secrets or SOPS when needed).
 
 ## Workstation setup
 
@@ -128,6 +128,7 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 
 ## Conventions
 
+- **Protected `main`:** the ruleset `golden-path: main` (managed by `/golden-path:setup-branch-policy`) blocks direct pushes, force pushes and deletion for everyone, the owner included; there are no bypass actors. Every change goes through a PR with a green `validate` check and resolved conversations, merged by squash; the head branch is deleted after the merge. Approvals are 0 because the repo has one owner, whose merge is the approval. Break glass (e.g. CI itself is broken): an admin sets the ruleset to disabled in the repo settings, fixes, and re-enables it
 - **Conventional commits:** `feat(infra): ...`, `feat(ansible): ...`, `docs: ...`, `fix: ...`
 - **LF line endings** enforced via `.gitattributes`
 - **Pin versions** (providers, k3s, charts, images). No `latest`.
@@ -166,6 +167,5 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - Argo CD memory limits were sized for an empty cluster and have been raised twice (controller 1Gi, repo-server 512Mi); with Kyverno added the controller idles around 460 Mi → re-check when later components are added
 - kube-prometheus-stack admission webhook hook Jobs race with Argo CD hook tracking (`hook-succeeded` deletes the Job before Argo records it: "waiting for deletion of hook" or "Job is missing"). Harmless so far → replace the hook Jobs with cert-manager (`prometheusOperator.admissionWebhooks.certManager`) once cert-manager is installed
 - CI does not render the Helm charts, so a chart upgrade that breaks a policy (including in a hook Job) is still caught only by hand with `helm template` → issue #4
-- `main` is not protected yet → run `/golden-path:setup-branch-policy` once the `validate` workflow has run on `main`
 - Alertmanager has no receivers, so alerts (e.g. OOMKilled restarts) reach nobody → add a receiver (email, Discord or similar); until then check `restartCount` and `lastState.terminated.reason` by hand. Short OOM spikes do not show in Prometheus memory graphs (30 s scrape interval)
 - Argo CD polls GitHub every ~3 min; for an immediate sync use Refresh in the UI (a GitHub webhook would need a public endpoint)
