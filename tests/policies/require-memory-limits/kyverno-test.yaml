@@ -1,0 +1,34 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: require-memory-limits
+policies:
+  - ../../../platform/policies/require-memory-limits.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: require-memory-limits
+    isValidatingPolicy: true
+    kind: Pod
+    result: pass
+    resources:
+      - good-request-and-limit
+      - good-with-init-container
+  - policy: require-memory-limits
+    isValidatingPolicy: true
+    kind: Pod
+    result: fail
+    resources:
+      - bad-no-resources
+      - bad-request-without-limit
+      - bad-limit-without-request
+      - bad-cpu-only
+      - bad-init-container-without-limit
+      - bad-sidecar-without-limit
+  # Excluded by the namespaceSelector: the policy produces no result at all
+  - policy: require-memory-limits
+    isValidatingPolicy: true
+    kind: Pod
+    result: skip
+    resources:
+      - excluded-kube-system

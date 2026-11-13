@@ -1,0 +1,143 @@
+# Test pods for require-memory-limits. Never applied to the cluster: Argo CD
+# only syncs platform/.
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-request-and-limit
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+      resources:
+        requests:
+          memory: 64Mi
+        limits:
+          memory: 128Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-with-init-container
+  namespace: demo
+spec:
+  initContainers:
+    - name: init
+      image: ghcr.io/example/init:1.0.0
+      resources:
+        requests:
+          memory: 16Mi
+        limits:
+          memory: 32Mi
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+      resources:
+        requests:
+          memory: 64Mi
+        limits:
+          memory: 128Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-no-resources
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-request-without-limit
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+      resources:
+        requests:
+          memory: 64Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-limit-without-request
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+      resources:
+        limits:
+          memory: 128Mi
+---
+# Edge: only CPU is set, memory is still missing
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-cpu-only
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+      resources:
+        requests:
+          cpu: 100m
+        limits:
+          cpu: 200m
+---
+# Edge: the main container is fine, the init container is not
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-init-container-without-limit
+  namespace: demo
+spec:
+  initContainers:
+    - name: init
+      image: ghcr.io/example/init:1.0.0
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+      resources:
+        requests:
+          memory: 64Mi
+        limits:
+          memory: 128Mi
+---
+# Edge: one of two containers is missing its limit
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-sidecar-without-limit
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+      resources:
+        requests:
+          memory: 64Mi
+        limits:
+          memory: 128Mi
+    - name: sidecar
+      image: ghcr.io/example/sidecar:1.0.0
+      resources:
+        requests:
+          memory: 16Mi
+---
+# Edge: kube-system is excluded by the namespaceSelector
+apiVersion: v1
+kind: Pod
+metadata:
+  name: excluded-kube-system
+  namespace: kube-system
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0

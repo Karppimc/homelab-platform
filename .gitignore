@@ -8,6 +8,7 @@ crash.log
 # Ansible
 *.retry
 .vault_pass*
+.ansible/
 
 # Kubernetes
 kubeconfig*

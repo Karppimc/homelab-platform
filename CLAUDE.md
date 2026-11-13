@@ -42,6 +42,7 @@ ansible/                   Ansible: k3s installation, Argo CD bootstrap
   inventory/hosts.yml
   inventory/group_vars/k3s_cluster/vars.yml
   inventory/group_vars/k3s_cluster/vault.yml   (Ansible Vault, encrypted)
+  requirements.yml         pinned collections (kubernetes.core)
   playbooks/k3s.yml
   playbooks/bootstrap-secrets.yml  (localhost; creates random in-cluster Secrets once, e.g. grafana-admin)
   playbooks/argocd.yml     (runs on localhost via kubeconfig; Helm install only on a fresh cluster)
@@ -54,6 +55,10 @@ platform/                  GitOps: everything here is deployed by Argo CD from G
   policies/                Kyverno ValidatingPolicy (policies.kyverno.io/v1, CEL); ClusterPolicy is deprecated in 1.19, do not use it
                            PolicyExceptions live here too but must use namespace kyverno (only namespace honoured)
   monitoring/              kube-prometheus-stack, Loki and Alloy values (namespace monitoring)
+tests/policies/            Kyverno CLI tests, one directory per policy (kyverno-test.yaml + resources.yaml).
+                           Kept outside platform/ on purpose: Argo CD would apply the test pods
+.github/workflows/         validate.yml: CI checks on every PR and on main (required check: validate)
+.yamllint                  yamllint config for the whole repo
 README.md                  Public project description and roadmap
 CLAUDE.md                  This file
 ```
@@ -68,6 +73,7 @@ All work happens in **WSL (Debian)**, not on the Windows filesystem. Ansible ref
 
 - Repo: `~/homelab-platform`
 - Tools: Terraform, Ansible (via pipx, with `kubernetes==37.0.1` injected for `kubernetes.core.k8s`), kubectl, Helm v3.22.0 (`~/.local/bin`, SHA256-verified)
+- Lint and test tools, same versions as CI (`.github/workflows/validate.yml`): ansible-lint 26.10.1 (pipx, with `ansible-core==2.19.14` pinned in its venv), yamllint 1.38.0 (pipx), Kyverno CLI v1.19.1 and kubeconform v0.8.0 (`~/.local/bin`, SHA256-verified)
 - `KUBECONFIG=~/.kube/homelab.yaml` (fetched by the k3s playbook, exported in `~/.bashrc`). Without it kubectl falls back to `~/.kube/config`, which points at an old Docker Desktop cluster
 - SSH key loaded via `keychain`
 
@@ -97,6 +103,16 @@ kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-passwor
 # Verify
 kubectl get nodes -o wide
 kubectl get pods -A
+
+# Checks that CI runs (workflow validate); run them before opening a PR
+terraform -chdir=infra/terraform/proxmox fmt -check -recursive
+terraform -chdir=infra/terraform/proxmox validate
+yamllint .
+(cd ansible && ansible-lint)
+kyverno test tests/policies
+kubeconform -strict -summary -schema-location default \
+  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+  platform/apps platform/bootstrap platform/policies
 ```
 
 Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook playbooks/k3s.yml` → `ansible-playbook playbooks/bootstrap-secrets.yml` → `ansible-playbook playbooks/argocd.yml`. After a rebuild the Argo CD admin password is regenerated in `argocd-initial-admin-secret`.
@@ -119,6 +135,9 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - **Least privilege** for every service account and token
 - Every non-obvious design choice gets a short rationale in the README "Design decisions" table (ADRs planned in `docs/adr/`)
 - **Every workload must pass the Kyverno policies:** memory request + limit on every container (including init and Helm hook containers), pinned image tag, `runAsNonRoot: true` with a numeric `runAsUser` when the image sets `USER` by name. Before adding a chart or changing a policy, render it with `helm template` and check all workloads, **including Helm hook Jobs**: background scans never see hooks, and a rejected hook blocks the whole sync (for Argo CD itself, that means break glass)
+- **Every policy change comes with test cases** in `tests/policies/<policy>/`: at least one good, one bad and the edge cases. A resource that a policy must not match (excluded namespace, PolicyException) is asserted with `result: skip`; any other expected result passes silently for it
+- **CI versions are pinned in one place**, the `env` block of `.github/workflows/validate.yml`: actions by commit SHA, binaries by SHA256, the CRD schema catalog by commit. Keep the Kyverno CLI version equal to the cluster's
+- CI has no vault password: `ansible-lint` runs with a placeholder password file, which is enough because the syntax check never decrypts `vault.yml`. Never add the real password as a GitHub secret for linting
 - When triggering a sync by patching `.operation`, pass the app's `syncOptions` too (e.g. `ServerSideApply=true`); otherwise Argo CD falls back to client-side apply and large CRDs fail
 
 ## Working style
@@ -146,6 +165,7 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - `local-path` volumes are pinned to one node (Prometheus on k3s-worker-2, Loki on k3s-worker-1): if that node is lost, so is its data, and moving the pod means deleting the PVC → replicated storage (e.g. Longhorn) if data ever matters
 - Argo CD memory limits were sized for an empty cluster and have been raised twice (controller 1Gi, repo-server 512Mi); with Kyverno added the controller idles around 460 Mi → re-check when later components are added
 - kube-prometheus-stack admission webhook hook Jobs race with Argo CD hook tracking (`hook-succeeded` deletes the Job before Argo records it: "waiting for deletion of hook" or "Job is missing"). Harmless so far → replace the hook Jobs with cert-manager (`prometheusOperator.admissionWebhooks.certManager`) once cert-manager is installed
-- Policies have no unit tests yet → add `kyverno test` cases (good/bad/edge pods) and run them in CI in Phase 6; the Kyverno CLI download needs to be allowed in Claude Code first
+- CI does not render the Helm charts, so a chart upgrade that breaks a policy (including in a hook Job) is still caught only by hand with `helm template` → issue #4
+- `main` is not protected yet → run `/golden-path:setup-branch-policy` once the `validate` workflow has run on `main`
 - Alertmanager has no receivers, so alerts (e.g. OOMKilled restarts) reach nobody → add a receiver (email, Discord or similar); until then check `restartCount` and `lastState.terminated.reason` by hand. Short OOM spikes do not show in Prometheus memory graphs (30 s scrape interval)
 - Argo CD polls GitHub every ~3 min; for an immediate sync use Refresh in the UI (a GitHub webhook would need a public endpoint)

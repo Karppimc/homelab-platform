@@ -1,0 +1,46 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: require-run-as-non-root
+policies:
+  - ../../../platform/policies/require-run-as-non-root.yaml
+resources:
+  - resources.yaml
+exceptions:
+  - ../../../platform/policies/exception-alloy-run-as-root.yaml
+results:
+  - policy: require-run-as-non-root
+    isValidatingPolicy: true
+    kind: Pod
+    result: pass
+    resources:
+      - good-pod-level
+      - good-container-level
+      - good-container-overrides-pod
+      - good-with-init-container
+  - policy: require-run-as-non-root
+    isValidatingPolicy: true
+    kind: Pod
+    result: fail
+    resources:
+      - bad-not-set
+      - bad-pod-level-false
+      - bad-container-overrides-pod
+      - bad-init-container-overrides-pod
+      - bad-sidecar-not-set
+      - bad-alloy-label-in-other-namespace
+      - bad-other-pod-in-monitoring
+  # Exempted by the PolicyException (reportResult: skip)
+  - policy: require-run-as-non-root
+    isValidatingPolicy: true
+    kind: Pod
+    result: skip
+    resources:
+      - exception-alloy
+  # Excluded by the namespaceSelector: the policy produces no result at all
+  - policy: require-run-as-non-root
+    isValidatingPolicy: true
+    kind: Pod
+    result: skip
+    resources:
+      - excluded-kube-system
