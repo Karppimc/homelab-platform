@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (git-ignored) and fill in the real token:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Never commit terraform.tfvars. Every other variable has a default in
+# variables.tf and can be overridden here.
+
+proxmox_api_token = "terraform@pve!provider=<token>"
