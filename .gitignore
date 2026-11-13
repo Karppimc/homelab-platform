@@ -4,3 +4,11 @@
 *.tfvars
 !*.tfvars.example
 crash.log
+
+# Ansible
+*.retry
+.vault_pass*
+
+# Kubernetes
+kubeconfig*
+*.kubeconfig
