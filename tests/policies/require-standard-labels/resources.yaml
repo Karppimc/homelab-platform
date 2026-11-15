@@ -339,3 +339,51 @@ spec:
       containers:
         - name: app
           image: ghcr.io/example/app:1.0.0
+
+---
+# The labels the podinfo chart really sets: exempted by the PolicyException
+apiVersion: v1
+kind: Pod
+metadata:
+  name: exception-podinfo-pod
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: podinfo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exception-podinfo-deployment
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: podinfo
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: podinfo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: podinfo
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+# Edge: the exception is for the demo namespace only; the same label elsewhere fails
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-podinfo-label-in-other-namespace
+  namespace: shop
+  labels:
+    app.kubernetes.io/name: podinfo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0

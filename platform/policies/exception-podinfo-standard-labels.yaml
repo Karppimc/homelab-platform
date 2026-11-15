@@ -1,0 +1,21 @@
+# The podinfo chart (6.15.0) has no value for pod labels and sets no part-of label,
+# so its Deployment and pods cannot carry the full set of standard labels. podinfo is
+# a third-party demo; exempt only it, only in the demo namespace, and only from
+# require-standard-labels. Remove this when the demo is replaced by a service built
+# from the platform's own template.
+apiVersion: policies.kyverno.io/v1
+kind: PolicyException
+metadata:
+  name: podinfo-standard-labels
+  namespace: kyverno
+spec:
+  policyRefs:
+    - kind: ValidatingPolicy
+      name: require-standard-labels
+  matchConditions:
+    - name: podinfo-in-demo
+      expression: >-
+        object.metadata.namespace == 'demo' &&
+        object.metadata.?labels[?'app.kubernetes.io/name'].orValue('') == 'podinfo'
+  # Show exempted resources as "skip" in PolicyReports instead of hiding them
+  reportResult: skip
