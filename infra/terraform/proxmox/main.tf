@@ -1,53 +1,43 @@
-resource "proxmox_virtual_environment_vm" "k3s" {
+module "k3s_node" {
+  source   = "../modules/k3s-node"
   for_each = var.k3s_nodes
 
-  name      = each.key
-  vm_id     = each.value.vm_id
-  node_name = var.node_name
-  tags      = ["terraform", "k3s", each.value.role]
-  on_boot   = true
+  name  = each.key
+  vm_id = each.value.vm_id
+  role  = each.value.role
 
-  clone {
-    vm_id = var.template_id
-  }
+  node_name    = var.node_name
+  datastore_id = var.datastore_id
+  template_id  = var.template_id
 
-  agent {
-    enabled = true
-  }
+  ip                    = each.value.ip
+  network_prefix_length = var.network_prefix_length
+  gateway               = var.gateway
+  dns_servers           = [var.gateway]
 
-  cpu {
-    cores = each.value.cores
-    type  = "host"
-  }
+  cores  = each.value.cores
+  memory = each.value.memory
+  disk   = each.value.disk
 
-  memory {
-    dedicated = each.value.memory
-  }
+  username       = var.vm_username
+  ssh_public_key = file(pathexpand(var.ssh_public_key_path))
+}
 
-  disk {
-    datastore_id = var.datastore_id
-    interface    = "scsi0"
-    size         = each.value.disk
-    discard      = "on"
-    ssd          = true
-  }
+# The VMs were a resource in this configuration before they became a module.
+# These blocks tell Terraform that they are the same VMs, so it updates the
+# state instead of destroying and recreating them. They can be removed once
+# every copy of the state has been applied with them.
+moved {
+  from = proxmox_virtual_environment_vm.k3s["k3s-cp-1"]
+  to   = module.k3s_node["k3s-cp-1"].proxmox_virtual_environment_vm.this
+}
 
-  initialization {
-    datastore_id = var.datastore_id
-    ip_config {
-      ipv4 {
-        address = "${each.value.ip}/${var.network_prefix_length}"
-        gateway = var.gateway
-      }
-    }
-    dns {
-      servers = [var.gateway]
-    }
-    user_account {
-      username = var.vm_username
-      keys     = [trimspace(file(pathexpand(var.ssh_public_key_path)))]
-    }
-  }
+moved {
+  from = proxmox_virtual_environment_vm.k3s["k3s-worker-1"]
+  to   = module.k3s_node["k3s-worker-1"].proxmox_virtual_environment_vm.this
+}
 
-  stop_on_destroy = true
+moved {
+  from = proxmox_virtual_environment_vm.k3s["k3s-worker-2"]
+  to   = module.k3s_node["k3s-worker-2"].proxmox_virtual_environment_vm.this
 }
