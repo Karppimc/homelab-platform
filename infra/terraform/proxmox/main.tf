@@ -25,7 +25,7 @@ resource "proxmox_virtual_environment_vm" "k3s" {
   }
 
   disk {
-    datastore_id = "local-lvm"
+    datastore_id = var.datastore_id
     interface    = "scsi0"
     size         = each.value.disk
     discard      = "on"
@@ -33,10 +33,10 @@ resource "proxmox_virtual_environment_vm" "k3s" {
   }
 
   initialization {
-    datastore_id = "local-lvm"
+    datastore_id = var.datastore_id
     ip_config {
       ipv4 {
-        address = "${each.value.ip}/24"
+        address = "${each.value.ip}/${var.network_prefix_length}"
         gateway = var.gateway
       }
     }
@@ -44,7 +44,7 @@ resource "proxmox_virtual_environment_vm" "k3s" {
       servers = [var.gateway]
     }
     user_account {
-      username = "santeri"
+      username = var.vm_username
       keys     = [trimspace(file(pathexpand(var.ssh_public_key_path)))]
     }
   }
