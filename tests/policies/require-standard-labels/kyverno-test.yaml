@@ -1,0 +1,85 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: require-standard-labels
+policies:
+  - ../../../platform/policies/require-standard-labels.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: Pod
+    result: pass
+    resources:
+      - good-pod
+      - good-pod-extra-labels
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: Deployment
+    result: pass
+    resources:
+      - good-deployment
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: StatefulSet
+    result: pass
+    resources:
+      - good-statefulset
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: DaemonSet
+    result: pass
+    resources:
+      - good-daemonset
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: Pod
+    result: fail
+    resources:
+      - bad-pod-no-labels
+      - bad-pod-missing-name
+      - bad-pod-missing-part-of
+      - bad-pod-missing-managed-by
+      - bad-pod-empty-value
+      - bad-pod-other-labels-only
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: Deployment
+    result: fail
+    resources:
+      - bad-deployment-no-labels
+      - bad-deployment-template-unlabelled
+      - bad-deployment-only-template-labelled
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: StatefulSet
+    result: fail
+    resources:
+      - bad-statefulset-missing-part-of
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: DaemonSet
+    result: fail
+    resources:
+      - bad-daemonset-missing-managed-by
+  # Jobs are not in matchConstraints: the policy produces no result at all
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: Job
+    result: skip
+    resources:
+      - unmatched-job
+  # Excluded by the namespaceSelector: the policy produces no result at all
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: Pod
+    result: skip
+    resources:
+      - excluded-kube-system
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: Deployment
+    result: skip
+    resources:
+      - excluded-kyverno
