@@ -36,7 +36,8 @@ The production website (karppimc.com) runs on a separate Raspberry Pi and is **o
 ## Repository layout
 
 ```
-infra/terraform/proxmox/   Terraform: VMs on Proxmox (bpg/proxmox provider)
+infra/terraform/proxmox/   Terraform: VMs on Proxmox (bpg/proxmox provider); calls the k3s-node module per node
+infra/terraform/modules/   Reusable Terraform modules, each with its own README (k3s-node = one VM)
 ansible/                   Ansible: k3s installation, Argo CD bootstrap
   ansible.cfg
   inventory/hosts.yml
@@ -105,7 +106,7 @@ kubectl get nodes -o wide
 kubectl get pods -A
 
 # Checks that CI runs (workflow validate); run them before opening a PR
-terraform -chdir=infra/terraform/proxmox fmt -check -recursive
+terraform -chdir=infra/terraform fmt -check -recursive   # root and modules
 terraform -chdir=infra/terraform/proxmox validate
 yamllint .
 (cd ansible && ansible-lint)

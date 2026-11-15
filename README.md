@@ -72,7 +72,8 @@ Running a platform on a decade-old laptop is a deliberate constraint: it forces 
 homelab-platform/
 ├── infra/
 │   └── terraform/
-│       └── proxmox/      # VM provisioning on Proxmox
+│       ├── proxmox/      # VM provisioning on Proxmox (root configuration)
+│       └── modules/      # reusable modules (k3s-node: one k3s VM)
 ├── ansible/
 │   ├── inventory/        # hosts and group_vars (secrets in Ansible Vault)
 │   └── playbooks/        # k3s installation, Argo CD bootstrap
