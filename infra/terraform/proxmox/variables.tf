@@ -22,6 +22,28 @@ variable "template_id" {
   default     = 9000
 }
 
+variable "datastore_id" {
+  description = "Proxmox datastore that holds both the VM disk and the cloud-init drive."
+  type        = string
+  default     = "local-lvm"
+
+  validation {
+    condition     = length(trimspace(var.datastore_id)) > 0
+    error_message = "The datastore_id must not be empty."
+  }
+}
+
+variable "vm_username" {
+  description = "Name of the user that cloud-init creates on each VM. Ansible connects as this user."
+  type        = string
+  default     = "santeri"
+
+  validation {
+    condition     = can(regex("^[a-z_][a-z0-9_-]{0,31}$", var.vm_username))
+    error_message = "The vm_username must be a valid Linux user name: lowercase letters, digits, - and _, starting with a letter or _, at most 32 characters."
+  }
+}
+
 variable "ssh_public_key_path" {
   description = "Path to the SSH public key that cloud-init installs for the VM user."
   type        = string
@@ -36,6 +58,17 @@ variable "gateway" {
   validation {
     condition     = can(regex("^\\d{1,3}(\\.\\d{1,3}){3}$", var.gateway)) && can(cidrhost("${var.gateway}/32", 0))
     error_message = "The gateway must be a valid IPv4 address without a prefix length, e.g. 192.168.1.1."
+  }
+}
+
+variable "network_prefix_length" {
+  description = "Prefix length of the LAN subnet, appended to each node's IPv4 address (24 means /24)."
+  type        = number
+  default     = 24
+
+  validation {
+    condition     = var.network_prefix_length >= 1 && var.network_prefix_length <= 32 && floor(var.network_prefix_length) == var.network_prefix_length
+    error_message = "The network_prefix_length must be a whole number from 1 to 32."
   }
 }
 
