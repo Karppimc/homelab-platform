@@ -1,0 +1,7 @@
+apiVersion: v2
+name: namespace-baseline
+description: >-
+  The landing zone of one workload: a namespace that arrives with its guardrails
+  (quota, default limits, network policies) and an Argo CD project limited to it.
+type: application
+version: 0.1.0

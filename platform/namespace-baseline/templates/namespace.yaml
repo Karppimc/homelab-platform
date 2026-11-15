@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    {{- include "namespace-baseline.labels" . | nindent 4 }}
+    platform.home.arpa/quota: {{ .Values.quota }}
+  annotations:
+    # Never delete a namespace, and everything in it, because it dropped out of a render
+    argocd.argoproj.io/sync-options: Prune=false

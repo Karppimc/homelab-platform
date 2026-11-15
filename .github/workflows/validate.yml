@@ -140,6 +140,10 @@ jobs:
           -schema-location
           "https://raw.githubusercontent.com/datreeio/CRDs-catalog/${CRD_CATALOG_REF}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
           platform/apps platform/bootstrap platform/policies
+      # Helm values and chart templates are not manifests: the namespace baseline
+      # chart is rendered for every workload file and the result validated
+      - name: namespace baseline
+        run: scripts/check-namespace-baseline.sh
       - name: kyverno test
         run: kyverno test tests/policies
       # Renders every chart in platform/apps with its pinned version and values

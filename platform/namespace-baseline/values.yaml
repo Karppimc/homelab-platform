@@ -1,0 +1,56 @@
+# Values of the namespace baseline. One file per workload in platform/workloads/
+# sets the first four; the rest are platform defaults and are not meant to be
+# overridden per workload. values.schema.json validates the file.
+
+# Name of the workload: its namespace and its Argo CD project
+name: ""
+
+# Team or person that owns the workload (label value: letters, digits, - _ .)
+owner: ""
+
+# Size of the ResourceQuota: small, medium or large (see quotaSizes)
+quota: small
+
+# Repositories the workload's Argo CD Applications may deploy from (Git or Helm)
+sourceRepos: []
+
+quotaSizes:
+  small:
+    requestsCpu: 500m
+    requestsMemory: 512Mi
+    limitsMemory: 1Gi
+    pods: 10
+  medium:
+    requestsCpu: "1"
+    requestsMemory: 1Gi
+    limitsMemory: 2Gi
+    pods: 20
+  large:
+    requestsCpu: "2"
+    requestsMemory: 2Gi
+    limitsMemory: 4Gi
+    pods: 40
+
+# What a container gets when it does not set the value itself. The quota counts
+# requests and memory limits, so a pod without them would otherwise be rejected.
+# No default CPU limit on purpose: it throttles, and the policies do not ask for one
+containerDefaults:
+  requestCpu: 25m
+  requestMemory: 64Mi
+  limitMemory: 128Mi
+
+# Namespace Argo CD runs in; the AppProject is created there
+argocdNamespace: argocd
+
+# Where traffic into the workload may come from, besides its own namespace
+ingressController:
+  namespace: kube-system
+  podLabels:
+    app.kubernetes.io/name: traefik
+monitoringNamespace: monitoring
+
+# Cluster DNS, the only egress allowed out of the namespace by default
+dns:
+  namespace: kube-system
+  podLabels:
+    k8s-app: kube-dns
