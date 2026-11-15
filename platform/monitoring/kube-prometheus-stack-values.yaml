@@ -61,7 +61,36 @@ prometheus:
               storage: 10Gi
 
 alertmanager:
+  # Everything goes to one Discord channel, except the alerts that exist only for
+  # machines: Watchdog (always firing, proves the pipeline is alive), InfoInhibitor
+  # and info-level alerts. The chart's default inhibit rules stay in place
+  config:
+    route:
+      receiver: discord
+      group_by: [alertname, namespace]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      routes:
+        - receiver: "null"
+          matchers:
+            - alertname =~ "Watchdog|InfoInhibitor"
+        - receiver: "null"
+          matchers:
+            - severity = "info"
+    receivers:
+      - name: "null"
+      - name: discord
+        discord_configs:
+          # The webhook URL is a secret: it comes from the Secret mounted below,
+          # created by ansible/playbooks/bootstrap-secrets.yml from Ansible Vault
+          - webhook_url_file: /etc/alertmanager/secrets/alertmanager-discord/webhook-url
+            send_resolved: true
   alertmanagerSpec:
+    # Mounted at /etc/alertmanager/secrets/<name>/. Alertmanager does not start
+    # without it: run bootstrap-secrets.yml before the first sync
+    secrets:
+      - alertmanager-discord
     # Same as for Prometheus: the standard labels on the operator-made pods
     podMetadata:
       labels:
