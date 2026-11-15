@@ -86,10 +86,11 @@ homelab-platform/
 │   ├── policies/         # Kyverno ValidatingPolicies (CEL)
 │   ├── monitoring/       # kube-prometheus-stack, Loki and Alloy values
 │   ├── namespace-baseline/  # Helm chart: namespace, quota, network policies, Argo CD project
+│   ├── service-chart/    # Helm chart: Deployment, Service and ServiceMonitor for a service
 │   └── workloads/        # one file per workload, deployed with the baseline chart
 ├── tests/
 │   └── policies/         # Kyverno CLI test cases: good, bad and edge-case pods per policy
-├── scripts/              # CI checks that also run on the workstation: chart policies, namespace baseline
+├── scripts/              # CI checks that also run on the workstation: chart policies, namespace baseline, service chart
 ├── .github/workflows/    # validate: static checks on every pull request
 ├── .gitattributes
 ├── .gitignore
@@ -187,6 +188,47 @@ An ApplicationSet turns the file into an Application that deploys the `platform/
 
 **2. Add an Argo CD Application** in `platform/apps/<name>.yaml` with `project: <name>` and the namespace as destination. `platform/apps/demo.yaml` with `platform/workloads/demo.yaml` is the reference implementation.
 
+### Deploying a service with the platform chart
+
+A service does not write its own Deployment, Service and ServiceMonitor. The chart `platform/service-chart` renders them from a values file that lives in the service's repository:
+
+```yaml
+# deploy/values.yaml in the service's repository
+name: shop
+image:
+  repository: ghcr.io/example/shop
+  tag: 3f2c1e9a...          # the commit the image was built from; never latest
+port: 8080
+resources:
+  requests: { cpu: 10m, memory: 32Mi }
+  limits: { memory: 64Mi }
+```
+
+The chart adds what the policies ask for, so a service passes them by construction: the standard labels on the Deployment and its pods, `runAsNonRoot` with a numeric user, a read-only root filesystem, no privilege escalation and no capabilities, readiness and liveness probes on `/readyz` and `/healthz`, and a ServiceMonitor for `/metrics`. The schema rejects a missing image, the `latest` tag and missing memory settings before anything reaches the cluster.
+
+The Application combines the chart from this repository with the values from the service's repository (both listed in `sourceRepos` of the workload file):
+
+```yaml
+spec:
+  project: shop
+  sources:
+    - repoURL: https://github.com/karppimc/homelab-platform.git
+      targetRevision: main
+      path: platform/service-chart
+      helm:
+        releaseName: shop
+        valueFiles:
+          - $values/deploy/values.yaml
+    - repoURL: https://github.com/example/shop.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shop
+```
+
+A new version is released by changing `image.tag` in the service's repository.
+
 What the baseline does not do for you: traffic leaving the namespace (an external API, a database elsewhere) is denied until the workload adds its own NetworkPolicy, and removing the workload file leaves the namespace in place on purpose; deleting it is a deliberate, manual step.
 
 ## Security
@@ -220,6 +262,7 @@ Security is treated as a platform feature, not an afterthought.
 | Protected `main`, no bypass | Argo CD deploys whatever lands on `main`, so a commit there is a deployment. A ruleset allows changes only through a pull request with a green `validate` check, squash-merged; nobody can push directly or force push, the owner included, so the cluster only ever runs validated commits |
 | Standard labels as a policy, audited first | `require-standard-labels` requires `app.kubernetes.io/name`, `part-of` and `managed-by` on Deployments, StatefulSets, DaemonSets, Jobs, CronJobs (including their pod templates) and Pods. It ran in Audit first: most third-party charts label the controller but not the pods, so the findings were fixed through chart values, or given a narrow exception where the chart offers none, before it was switched to Deny. Jobs are matched themselves because a Job whose pods are rejected is created fine and then never completes, which would block an Argo CD sync without an error |
 | A namespace baseline as the landing zone | A workload is one small file (name, owner, quota size, source repositories); an ApplicationSet deploys a local Helm chart with it: namespace, ResourceQuota, LimitRange, default-deny NetworkPolicies and an Argo CD AppProject limited to that namespace. A Helm chart rather than Kustomize, because name and quota size are parameters, not patches. Removing the file never deletes the namespace |
+| A platform-owned service chart | Services supply a values file; the platform's chart renders the Deployment, Service and ServiceMonitor with the labels, security context, probes and metrics the policies ask for. A policy change is then fixed in one chart instead of in every service's copy of a template, and CI proves the chart passes every policy without an exception |
 | No CPU limits in the baseline | The quota counts CPU requests but not CPU limits, and the LimitRange sets no default CPU limit: a CPU limit throttles a container that has idle cores next to it, while a memory limit protects the node |
 | Narrow, centralised policy exceptions | Exceptions target one policy and one workload (Alloy must run as root to read node log files; the third-party podinfo chart cannot set the standard labels) and are honoured only in the `kyverno` namespace, so teams cannot exempt themselves |
 | Fail-closed admission | `failurePolicy: Fail`: if Kyverno is down, matching resources are rejected rather than admitted unchecked; `kube-system` and `kyverno` are excluded so the cluster can always recover |
