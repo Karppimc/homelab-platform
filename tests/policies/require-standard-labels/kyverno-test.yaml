@@ -66,13 +66,39 @@ results:
     result: fail
     resources:
       - bad-daemonset-missing-managed-by
-  # Jobs are not in matchConstraints: the policy produces no result at all
   - policy: require-standard-labels
     isValidatingPolicy: true
     kind: Job
+    result: pass
+    resources:
+      - good-job
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: CronJob
+    result: pass
+    resources:
+      - good-cronjob
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: Job
+    result: fail
+    resources:
+      - bad-job-no-labels
+      - bad-job-template-unlabelled
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: CronJob
+    result: fail
+    resources:
+      - bad-cronjob-job-template-unlabelled
+      - bad-cronjob-pod-template-unlabelled
+  # ReplicaSets are not in matchConstraints: the policy produces no result at all
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: ReplicaSet
     result: skip
     resources:
-      - unmatched-job
+      - unmatched-replicaset
   # Excluded by the namespaceSelector: the policy produces no result at all
   - policy: require-standard-labels
     isValidatingPolicy: true
