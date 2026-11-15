@@ -8,7 +8,8 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  # The demo's own project, created by its namespace baseline (platform/workloads/demo.yaml)
+  project: demo
   sources:
     - repoURL: https://stefanprodan.github.io/podinfo
       chart: podinfo
@@ -27,5 +28,3 @@ spec:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:
-      - CreateNamespace=true

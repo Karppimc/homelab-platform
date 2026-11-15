@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: baseline
+  namespace: {{ .Values.name }}
+  labels:
+    {{- include "namespace-baseline.labels" . | nindent 4 }}
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: {{ .Values.containerDefaults.requestCpu }}
+        memory: {{ .Values.containerDefaults.requestMemory }}
+      default:
+        memory: {{ .Values.containerDefaults.limitMemory }}

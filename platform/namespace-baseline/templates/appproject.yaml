@@ -1,0 +1,24 @@
+# The workload's Applications use this project, so they can deploy only from the
+# listed repositories and only into the workload's own namespace
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.argocdNamespace }}
+  labels:
+    {{- include "namespace-baseline.labels" . | nindent 4 }}
+spec:
+  description: Workload {{ .Values.name }}, owned by {{ .Values.owner }}
+  sourceRepos:
+    {{- toYaml .Values.sourceRepos | nindent 4 }}
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: {{ .Values.name }}
+  # No cluster-scoped resources at all
+  clusterResourceWhitelist: []
+  # The quota and the default limits belong to the platform, not to the workload
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange

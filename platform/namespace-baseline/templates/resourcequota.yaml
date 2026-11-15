@@ -1,0 +1,14 @@
+{{- $size := get .Values.quotaSizes .Values.quota -}}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: baseline
+  namespace: {{ .Values.name }}
+  labels:
+    {{- include "namespace-baseline.labels" . | nindent 4 }}
+spec:
+  hard:
+    requests.cpu: {{ $size.requestsCpu | quote }}
+    requests.memory: {{ $size.requestsMemory }}
+    limits.memory: {{ $size.limitsMemory }}
+    pods: {{ $size.pods | quote }}

@@ -1,0 +1,42 @@
+# Namespace baseline per workload: every file in platform/workloads/ becomes an
+# Application that deploys the platform/namespace-baseline chart with that file as
+# its values (namespace, quota, default limits, network policies, Argo CD project).
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: workloads
+  namespace: argocd
+spec:
+  goTemplate: true
+  # A file without a name must fail, not create an Application called "baseline-"
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/karppimc/homelab-platform.git
+        revision: main
+        files:
+          - path: platform/workloads/*.yaml
+  syncPolicy:
+    # Removing a workload file removes its Application but leaves the namespace and
+    # everything in it: a renamed or mistyped file must not delete a workload
+    preserveResourcesOnDeletion: true
+  template:
+    metadata:
+      name: 'baseline-{{ .name }}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/karppimc/homelab-platform.git
+        targetRevision: main
+        path: platform/namespace-baseline
+        helm:
+          releaseName: 'baseline-{{ .name }}'
+          valueFiles:
+            - '../workloads/{{ .path.filename }}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .name }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

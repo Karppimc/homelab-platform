@@ -1,0 +1,10 @@
+# Namespace baseline of the demo workload (podinfo). The ApplicationSet in
+# platform/apps/workloads.yaml turns every file in this directory into a namespace
+# with its guardrails and an Argo CD project. Schema: platform/namespace-baseline/
+name: demo
+owner: platform
+quota: small
+sourceRepos:
+  - https://stefanprodan.github.io/podinfo
+  # Helm values of the demo live in this repository
+  - https://github.com/karppimc/homelab-platform.git
