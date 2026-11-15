@@ -84,10 +84,12 @@ homelab-platform/
 │   ├── demo/             # podinfo demo app values
 │   ├── kyverno/          # Kyverno Helm values
 │   ├── policies/         # Kyverno ValidatingPolicies (CEL)
-│   └── monitoring/       # kube-prometheus-stack, Loki and Alloy values
+│   ├── monitoring/       # kube-prometheus-stack, Loki and Alloy values
+│   ├── namespace-baseline/  # Helm chart: namespace, quota, network policies, Argo CD project
+│   └── workloads/        # one file per workload, deployed with the baseline chart
 ├── tests/
 │   └── policies/         # Kyverno CLI test cases: good, bad and edge-case pods per policy
-├── scripts/              # chart policy check: render every chart, apply the policies
+├── scripts/              # CI checks that also run on the workstation: chart policies, namespace baseline
 ├── .github/workflows/    # validate: static checks on every pull request
 ├── .gitattributes
 ├── .gitignore
@@ -159,6 +161,34 @@ Grafana is published the same way at `https://grafana.home.arpa`.
 
 The whole environment can be torn down and rebuilt from scratch with `terraform destroy`, `terraform apply` and the playbooks.
 
+## Onboarding a workload
+
+A workload gets a landing zone: a namespace that arrives with its guardrails. Onboarding is two small files in a pull request.
+
+**1. Describe the workload** in `platform/workloads/<name>.yaml`:
+
+```yaml
+name: shop                 # namespace and Argo CD project
+owner: team-shop           # label on the namespace
+quota: small               # small, medium or large
+sourceRepos:               # where its Applications may deploy from
+  - https://github.com/example/shop-deploy.git
+```
+
+An ApplicationSet turns the file into an Application that deploys the `platform/namespace-baseline` chart:
+
+| Resource | What the workload gets |
+|---|---|
+| Namespace | Standard labels, owner and quota size as labels |
+| ResourceQuota | CPU and memory requests, memory limits and pod count by size (`small`: 500m CPU, 512Mi requests, 1Gi limits, 10 pods; `medium` and `large` are two and four times that) |
+| LimitRange | Default requests and memory limit for containers that set none |
+| NetworkPolicies | Default deny in both directions; allowed: DNS, traffic inside the namespace, ingress from Traefik and from Prometheus |
+| Argo CD AppProject | Deploys only from the listed repositories, only into this namespace, no cluster-scoped resources, and cannot change the quota or the limit range |
+
+**2. Add an Argo CD Application** in `platform/apps/<name>.yaml` with `project: <name>` and the namespace as destination. `platform/apps/demo.yaml` with `platform/workloads/demo.yaml` is the reference implementation.
+
+What the baseline does not do for you: traffic leaving the namespace (an external API, a database elsewhere) is denied until the workload adds its own NetworkPolicy, and removing the workload file leaves the namespace in place on purpose; deleting it is a deliberate, manual step.
+
 ## Security
 
 Security is treated as a platform feature, not an afterthought.
@@ -189,6 +219,8 @@ Security is treated as a platform feature, not an afterthought.
 | One required CI check | The `validate` workflow runs Terraform, Ansible, YAML and Kubernetes checks as separate jobs, and a final `validate` job passes only if all of them did; branch protection requires that single name, so jobs can change without touching the ruleset. No job needs credentials or network access to the homelab |
 | Protected `main`, no bypass | Argo CD deploys whatever lands on `main`, so a commit there is a deployment. A ruleset allows changes only through a pull request with a green `validate` check, squash-merged; nobody can push directly or force push, the owner included, so the cluster only ever runs validated commits |
 | Standard labels as a policy, audited first | `require-standard-labels` asks for `app.kubernetes.io/name`, `part-of` and `managed-by` on Deployments, StatefulSets, DaemonSets (including their pod template) and Pods. It runs in Audit: most third-party charts label the controller but not the pods, so the findings are fixed through chart values or given narrow exceptions before it is switched to Deny |
+| A namespace baseline as the landing zone | A workload is one small file (name, owner, quota size, source repositories); an ApplicationSet deploys a local Helm chart with it: namespace, ResourceQuota, LimitRange, default-deny NetworkPolicies and an Argo CD AppProject limited to that namespace. A Helm chart rather than Kustomize, because name and quota size are parameters, not patches. Removing the file never deletes the namespace |
+| No CPU limits in the baseline | The quota counts CPU requests but not CPU limits, and the LimitRange sets no default CPU limit: a CPU limit throttles a container that has idle cores next to it, while a memory limit protects the node |
 | Narrow, centralised policy exceptions | Exceptions target one policy and one workload (Alloy must run as root to read node log files) and are honoured only in the `kyverno` namespace, so teams cannot exempt themselves |
 | Fail-closed admission | `failurePolicy: Fail`: if Kyverno is down, matching resources are rejected rather than admitted unchecked; `kube-system` and `kyverno` are excluded so the cluster can always recover |
 | CEL ValidatingPolicy over ClusterPolicy | Kyverno 1.19 deprecates ClusterPolicy; CEL is also what Kubernetes' built-in ValidatingAdmissionPolicy uses |
