@@ -1,0 +1,47 @@
+# Alerts on the Argo CD Applications: the platform's own delivery mechanism.
+# Metrics come from the application controller (controller.metrics in
+# platform/argocd/values.yaml).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-argocd
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: platform-alerts
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/managed-by: argocd
+spec:
+  groups:
+    - name: platform-argocd
+      rules:
+        - alert: ArgoCDAppDegraded
+          expr: argocd_app_info{health_status="Degraded"} == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Argo CD application {{ $labels.name }} is degraded
+            description: >-
+              Application {{ $labels.name }} (project {{ $labels.project }}) has reported
+              health Degraded for 10 minutes: a workload it deploys is failing.
+        - alert: ArgoCDAppOutOfSync
+          expr: argocd_app_info{sync_status="OutOfSync"} == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Argo CD application {{ $labels.name }} is out of sync
+            description: >-
+              Application {{ $labels.name }} (project {{ $labels.project }}) has been OutOfSync
+              for 15 minutes: Git and the cluster differ and the sync does not close the gap.
+        # Without this, a broken scrape would look the same as "all applications are fine"
+        - alert: ArgoCDAppMetricsAbsent
+          expr: absent(argocd_app_info)
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Argo CD application metrics are missing
+            description: >-
+              Prometheus has had no argocd_app_info series for 15 minutes, so the Argo CD
+              application alerts cannot fire. Check the application controller and its ServiceMonitor.

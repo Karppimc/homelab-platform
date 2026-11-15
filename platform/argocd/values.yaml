@@ -26,6 +26,11 @@ redisSecretInit:
 
 controller:
   replicas: 1
+  # Application health and sync status as metrics, for the alerts in platform/alerts/
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
   # Caches every managed resource; 512Mi was OOMKilled once kube-prometheus-stack was added
   resources:
     requests:

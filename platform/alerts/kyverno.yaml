@@ -1,0 +1,94 @@
+# Alerts on the policies that deny (validationActions contains Deny). Kyverno
+# counts every evaluation in kyverno_validating_policy_results_total.
+#
+# Each expression has two halves joined with "or". increase() needs two samples,
+# so it sees a counter that grows but not one that has just appeared: the first
+# failure for a policy and namespace creates the series at 1. The second half
+# (the series exists now and did not exist a while ago) catches that case.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-kyverno
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: platform-alerts
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/managed-by: argocd
+spec:
+  groups:
+    - name: platform-kyverno
+      rules:
+        # Somebody, or a sync, tried to create something a policy refuses
+        - alert: KyvernoRequestDenied
+          expr: |
+            sum by (policy_name, resource_namespace, resource_kind) (
+              increase(kyverno_validating_policy_results_total{
+                result="fail",
+                policy_validation_mode="Deny",
+                execution_cause="admission_request"
+              }[10m])
+            ) > 0
+            or
+            sum by (policy_name, resource_namespace, resource_kind) (
+              kyverno_validating_policy_results_total{
+                result="fail",
+                policy_validation_mode="Deny",
+                execution_cause="admission_request"
+              }
+              unless
+              kyverno_validating_policy_results_total{
+                result="fail",
+                policy_validation_mode="Deny",
+                execution_cause="admission_request"
+              } offset 10m
+            ) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              Kyverno policy {{ $labels.policy_name }} denied a {{ $labels.resource_kind }}
+              in {{ $labels.resource_namespace }}
+            description: >-
+              Policy {{ $labels.policy_name }} rejected a {{ $labels.resource_kind }} in namespace
+              {{ $labels.resource_namespace }} in the last 10 minutes. If Argo CD made the request,
+              the application is failing to sync.
+        # Something that already runs violates a denying policy: it was created before
+        # the policy, or while Kyverno was down. ReplicaSets are left out: a Deployment's
+        # old ReplicaSets are history, and the Deployment and its pods are checked themselves
+        - alert: KyvernoPolicyViolation
+          expr: |
+            sum by (policy_name, resource_namespace, resource_kind) (
+              increase(kyverno_validating_policy_results_total{
+                result="fail",
+                policy_validation_mode="Deny",
+                execution_cause="background_scan",
+                resource_kind!="ReplicaSet"
+              }[2h])
+            ) > 0
+            or
+            sum by (policy_name, resource_namespace, resource_kind) (
+              kyverno_validating_policy_results_total{
+                result="fail",
+                policy_validation_mode="Deny",
+                execution_cause="background_scan",
+                resource_kind!="ReplicaSet"
+              }
+              unless
+              kyverno_validating_policy_results_total{
+                result="fail",
+                policy_validation_mode="Deny",
+                execution_cause="background_scan",
+                resource_kind!="ReplicaSet"
+              } offset 2h
+            ) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              A {{ $labels.resource_kind }} in {{ $labels.resource_namespace }} violates
+              policy {{ $labels.policy_name }}
+            description: >-
+              The background scan found a {{ $labels.resource_kind }} in namespace
+              {{ $labels.resource_namespace }} that violates the denying policy
+              {{ $labels.policy_name }}. See the PolicyReports in that namespace. The alert
+              clears up to two hours after the fix.

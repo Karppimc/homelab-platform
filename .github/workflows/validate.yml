@@ -139,7 +139,7 @@ jobs:
           -schema-location default
           -schema-location
           "https://raw.githubusercontent.com/datreeio/CRDs-catalog/${CRD_CATALOG_REF}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
-          platform/apps platform/bootstrap platform/policies
+          platform/apps platform/bootstrap platform/policies platform/alerts
       # Helm values and chart templates are not manifests: the namespace baseline
       # chart is rendered for every workload file and the result validated
       - name: namespace baseline
