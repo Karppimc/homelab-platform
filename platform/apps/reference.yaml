@@ -1,0 +1,31 @@
+# Reference service: created from Karppimc/service-template and deployed with the
+# platform's service chart. The chart comes from this repository, the values from
+# the service's own repository; a release is a change of image.tag there.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: reference
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  # Created by the namespace baseline (platform/workloads/reference.yaml)
+  project: reference
+  sources:
+    - repoURL: https://github.com/karppimc/homelab-platform.git
+      targetRevision: main
+      path: platform/service-chart
+      helm:
+        releaseName: reference-service
+        valueFiles:
+          - $values/deploy/values.yaml
+    - repoURL: https://github.com/karppimc/reference-service.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: reference
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

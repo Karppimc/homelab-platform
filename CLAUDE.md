@@ -60,6 +60,8 @@ platform/                  GitOps: everything here is deployed by Argo CD from G
                            NetworkPolicies (default deny) and an AppProject. values.schema.json validates workload files
   service-chart/           local Helm chart for services: Deployment, Service, ServiceMonitor from a values file that lives
                            in the service's repo (deploy/values.yaml). Must pass every policy without an exception
+  apps/reference.yaml      the reference service: chart platform/service-chart from this repo, values from
+                           Karppimc/reference-service (deploy/values.yaml); a release is an image.tag change in that repo
   workloads/               one values file per workload (name, owner, quota, sourceRepos); the ApplicationSet
                            platform/apps/workloads.yaml creates an Application baseline-<name> from each
 tests/service-chart/       example values for the service chart (what a service's deploy/values.yaml looks like)
@@ -173,7 +175,7 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - [x] Phase 3 – GitOps: Argo CD (chart 10.10.2 / v3.5.4), app-of-apps, self-management, podinfo demo, UI via Traefik Ingress
 - [x] Phase 4 – Observability: kube-prometheus-stack 92.3.0, Loki 7.3.0 (single binary), Alloy 1.13.1, podinfo ServiceMonitor
 - [x] Phase 5 – Policy as code: Kyverno 3.9.1 (v1.19.1); require-memory-limits, disallow-latest-tag, require-run-as-non-root enforced (Deny, failurePolicy Fail); require-standard-labels enforced as well since #27 (Deny; also covers Jobs and CronJobs); two exceptions (Alloy runs as root; the podinfo chart cannot set the standard labels); control plane tainted
-- [ ] **Phase 6 – Golden path service template + CI (next)**
+- [x] Phase 6 – Golden path: Karppimc/service-template (Go, distroless, CI with Trivy, GHCR), namespace baseline, platform service chart; Karppimc/reference-service runs in namespace `reference` (Application `reference`, values from the service repo)
 - [ ] Phase 7 – Self-service CLI / Backstage
 
 ## Known gaps / TODO
