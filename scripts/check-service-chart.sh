@@ -4,12 +4,18 @@
 # this chart must pass every policy without an exception.
 # Needs helm, kubeconform and kyverno.
 #
+# Usage: check-service-chart.sh [values-file]
+# Without an argument it uses the example values in tests/service-chart/. A
+# service's CI passes its own deploy/values.yaml, so a values file that the
+# platform would refuse fails in the service's pull request.
+#
 # CRD_CATALOG_REF pins the CRD schema catalog (ServiceMonitor); CI sets it.
 set -euo pipefail
 
+# Resolve the values file before changing directory: it may be relative to the caller
+values=$(realpath "${1:-$(dirname "$0")/../tests/service-chart/values.yaml}")
 cd "$(dirname "$0")/.."
 chart=platform/service-chart
-values=tests/service-chart/values.yaml
 catalog="https://raw.githubusercontent.com/datreeio/CRDs-catalog/${CRD_CATALOG_REF:-main}"
 
 # kubeconform only reads files with a YAML extension
