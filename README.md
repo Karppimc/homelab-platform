@@ -4,7 +4,7 @@ A self-hosted **Internal Developer Platform** built on repurposed hardware, desi
 
 The goal is not just to run Kubernetes, but to build a platform where a developer can ship a new service through a paved road, and get monitoring, security guardrails and deployment automation without manual work.
 
-> **Status:** Phase 5 (policy as code) complete: Kyverno enforces resource limits, pinned images and non-root containers, with every exception documented in Git. See the [roadmap](#roadmap).
+> **Status:** Phase 5 (policy as code) complete: Kyverno enforces resource limits, pinned images, non-root containers and standard labels, with every exception documented in Git. See the [roadmap](#roadmap).
 
 ---
 
@@ -218,7 +218,7 @@ Security is treated as a platform feature, not an afterthought.
 | Charts are checked against the policies before they are merged | CI renders every chart with the version and values from its Argo CD Application and applies the Kyverno policies to the workloads, Helm hook Jobs included. Policies that deny fail the pull request; policies still in Audit are printed as warnings. Background scans never see hook Jobs, and a rejected hook blocks the whole sync, so a chart upgrade that breaks a policy has to fail the pull request, not the cluster |
 | One required CI check | The `validate` workflow runs Terraform, Ansible, YAML and Kubernetes checks as separate jobs, and a final `validate` job passes only if all of them did; branch protection requires that single name, so jobs can change without touching the ruleset. No job needs credentials or network access to the homelab |
 | Protected `main`, no bypass | Argo CD deploys whatever lands on `main`, so a commit there is a deployment. A ruleset allows changes only through a pull request with a green `validate` check, squash-merged; nobody can push directly or force push, the owner included, so the cluster only ever runs validated commits |
-| Standard labels as a policy, audited first | `require-standard-labels` asks for `app.kubernetes.io/name`, `part-of` and `managed-by` on Deployments, StatefulSets, DaemonSets (including their pod template) and Pods. It runs in Audit: most third-party charts label the controller but not the pods, so the findings are fixed through chart values or given narrow exceptions before it is switched to Deny |
+| Standard labels as a policy, audited first | `require-standard-labels` requires `app.kubernetes.io/name`, `part-of` and `managed-by` on Deployments, StatefulSets, DaemonSets, Jobs, CronJobs (including their pod templates) and Pods. It ran in Audit first: most third-party charts label the controller but not the pods, so the findings were fixed through chart values, or given a narrow exception where the chart offers none, before it was switched to Deny. Jobs are matched themselves because a Job whose pods are rejected is created fine and then never completes, which would block an Argo CD sync without an error |
 | A namespace baseline as the landing zone | A workload is one small file (name, owner, quota size, source repositories); an ApplicationSet deploys a local Helm chart with it: namespace, ResourceQuota, LimitRange, default-deny NetworkPolicies and an Argo CD AppProject limited to that namespace. A Helm chart rather than Kustomize, because name and quota size are parameters, not patches. Removing the file never deletes the namespace |
 | No CPU limits in the baseline | The quota counts CPU requests but not CPU limits, and the LimitRange sets no default CPU limit: a CPU limit throttles a container that has idle cores next to it, while a memory limit protects the node |
 | Narrow, centralised policy exceptions | Exceptions target one policy and one workload (Alloy must run as root to read node log files; the third-party podinfo chart cannot set the standard labels) and are honoured only in the `kyverno` namespace, so teams cannot exempt themselves |
@@ -241,7 +241,7 @@ Detailed Architecture Decision Records will live in `docs/adr/`.
 - [x] **Phase 2 – Kubernetes:** 3-node k3s cluster provisioned from code
 - [x] **Phase 3 – GitOps:** Argo CD app-of-apps managing all platform components
 - [x] **Phase 4 – Observability by default:** Prometheus, Grafana and Loki; every service gets metrics and logs automatically
-- [x] **Phase 5 – Policy as code:** Kyverno guardrails (resource limits, no `latest` tags, no root containers)
+- [x] **Phase 5 – Policy as code:** Kyverno guardrails (resource limits, no `latest` tags, no root containers, standard labels)
 - [ ] **Phase 6 – Golden path:** service template with Dockerfile, manifests, CI pipeline and health checks
 - [ ] **Phase 7 – Self-service:** one command to create a new service, repository and deployment
 
