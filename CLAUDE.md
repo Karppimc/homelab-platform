@@ -165,7 +165,7 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - [x] Phase 2 – Kubernetes: 3-node k3s cluster via Terraform + Ansible
 - [x] Phase 3 – GitOps: Argo CD (chart 10.10.2 / v3.5.4), app-of-apps, self-management, podinfo demo, UI via Traefik Ingress
 - [x] Phase 4 – Observability: kube-prometheus-stack 92.3.0, Loki 7.3.0 (single binary), Alloy 1.13.1, podinfo ServiceMonitor
-- [x] Phase 5 – Policy as code: Kyverno 3.9.1 (v1.19.1); require-memory-limits, disallow-latest-tag, require-run-as-non-root enforced (Deny, failurePolicy Fail); require-standard-labels in Audit (#13; findings in podinfo, Grafana, Loki, Alloy, Prometheus and Alertmanager pods still open); one exception (Alloy runs as root); control plane tainted
+- [x] Phase 5 – Policy as code: Kyverno 3.9.1 (v1.19.1); require-memory-limits, disallow-latest-tag, require-run-as-non-root enforced (Deny, failurePolicy Fail); require-standard-labels in Audit (#13; findings fixed through chart values in #24, switch to Deny is #27); two exceptions (Alloy runs as root; the podinfo chart cannot set the standard labels); control plane tainted
 - [ ] **Phase 6 – Golden path service template + CI (next)**
 - [ ] Phase 7 – Self-service CLI / Backstage
 

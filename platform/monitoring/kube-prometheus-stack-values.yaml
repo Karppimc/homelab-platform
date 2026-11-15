@@ -24,6 +24,11 @@ defaultRules:
 
 prometheus:
   prometheusSpec:
+    # The operator builds the pods from this resource; the chart labels the resource
+    # but not the pods, and require-standard-labels asks for part-of on them too
+    podMetadata:
+      labels:
+        app.kubernetes.io/part-of: kube-prometheus-stack
     retention: 7d
     retentionSize: 8GB
     # Pick up ServiceMonitors, PodMonitors and rules from every namespace, not just
@@ -57,6 +62,10 @@ prometheus:
 
 alertmanager:
   alertmanagerSpec:
+    # Same as for Prometheus: the standard labels on the operator-made pods
+    podMetadata:
+      labels:
+        app.kubernetes.io/part-of: kube-prometheus-stack
     resources:
       requests:
         cpu: 10m
@@ -115,6 +124,14 @@ prometheus-node-exporter:
       memory: 64Mi
 
 grafana:
+  # The Grafana subchart sets neither part-of nor managed-by. extraLabels go on
+  # every Grafana resource, podLabels on the pods (require-standard-labels)
+  extraLabels:
+    app.kubernetes.io/part-of: kube-prometheus-stack
+    app.kubernetes.io/managed-by: Helm
+  podLabels:
+    app.kubernetes.io/part-of: kube-prometheus-stack
+    app.kubernetes.io/managed-by: Helm
   # The chart would generate a random password on every render under Argo CD
   # (no Helm lookup), so the Secret is created once by ansible/playbooks/bootstrap-secrets.yml
   admin:

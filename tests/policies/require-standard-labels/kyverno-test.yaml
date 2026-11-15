@@ -6,6 +6,8 @@ policies:
   - ../../../platform/policies/require-standard-labels.yaml
 resources:
   - resources.yaml
+exceptions:
+  - ../../../platform/policies/exception-podinfo-standard-labels.yaml
 results:
   - policy: require-standard-labels
     isValidatingPolicy: true
@@ -43,6 +45,7 @@ results:
       - bad-pod-missing-managed-by
       - bad-pod-empty-value
       - bad-pod-other-labels-only
+      - bad-podinfo-label-in-other-namespace
   - policy: require-standard-labels
     isValidatingPolicy: true
     kind: Deployment
@@ -83,3 +86,16 @@ results:
     result: skip
     resources:
       - excluded-kyverno
+  # Exempted by the PolicyException (reportResult: skip)
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: Pod
+    result: skip
+    resources:
+      - exception-podinfo-pod
+  - policy: require-standard-labels
+    isValidatingPolicy: true
+    kind: Deployment
+    result: skip
+    resources:
+      - exception-podinfo-deployment

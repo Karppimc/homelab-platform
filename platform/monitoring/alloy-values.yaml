@@ -81,6 +81,11 @@ alloy:
       }
 
 controller:
+  # The chart labels the DaemonSet but gives its pods only name and instance
+  # (require-standard-labels)
+  podLabels:
+    app.kubernetes.io/part-of: alloy
+    app.kubernetes.io/managed-by: Helm
   # The control plane is tainted CriticalAddonsOnly=true:NoExecute; collect its logs too
   tolerations:
     - key: CriticalAddonsOnly

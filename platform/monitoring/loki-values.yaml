@@ -4,7 +4,14 @@
 
 deploymentMode: SingleBinary
 
+# The chart sets name and part-of but not managed-by. commonLabels go on every
+# resource, loki.podLabels on the pods (require-standard-labels)
+commonLabels:
+  app.kubernetes.io/managed-by: Helm
+
 loki:
+  podLabels:
+    app.kubernetes.io/managed-by: Helm
   # Single tenant; no X-Scope-OrgID header needed
   auth_enabled: false
   commonConfig:
