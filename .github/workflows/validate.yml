@@ -144,6 +144,10 @@ jobs:
       # chart is rendered for every workload file and the result validated
       - name: namespace baseline
         run: scripts/check-namespace-baseline.sh
+      # The platform's service chart must render a workload that passes every
+      # policy without an exception
+      - name: service chart
+        run: scripts/check-service-chart.sh
       - name: kyverno test
         run: kyverno test tests/policies
       # Renders every chart in platform/apps with its pinned version and values

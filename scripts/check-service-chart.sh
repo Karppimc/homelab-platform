@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Lint the platform's service chart, render it with the example values and check
+# the result with kubeconform and the Kyverno policies. A service rendered from
+# this chart must pass every policy without an exception.
+# Needs helm, kubeconform and kyverno.
+#
+# CRD_CATALOG_REF pins the CRD schema catalog (ServiceMonitor); CI sets it.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+chart=platform/service-chart
+values=tests/service-chart/values.yaml
+catalog="https://raw.githubusercontent.com/datreeio/CRDs-catalog/${CRD_CATALOG_REF:-main}"
+
+# kubeconform only reads files with a YAML extension
+rendered=$(mktemp --suffix=.yaml)
+trap 'rm -f "${rendered}"' EXIT
+
+helm lint "${chart}" --values "${values}" --quiet
+helm template example "${chart}" --namespace example --values "${values}" >"${rendered}"
+
+echo "=== kubeconform"
+kubeconform -strict -summary \
+  -schema-location default \
+  -schema-location "${catalog}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+  "${rendered}"
+# Deployment, Service and ServiceMonitor: fewer means the render went wrong
+if [ "$(grep -c '^kind:' "${rendered}")" -lt 3 ]; then
+  echo "ERROR: expected at least 3 rendered resources" >&2
+  exit 1
+fi
+
+echo "=== values schema"
+# The schema must refuse what the policies would refuse later
+reject() {
+  if helm template example "${chart}" --namespace example --values "${values}" "$@" >/dev/null 2>&1; then
+    echo "ERROR: the values schema accepted: $*" >&2
+    exit 1
+  fi
+  echo "rejected as expected: $*"
+}
+reject --set-string image.tag=latest
+reject --set-string image.tag=
+reject --set-string name=
+reject --set resources.limits=null
+
+echo "=== kyverno policies"
+# Policies are passed as files: for a directory of these policies kyverno loads
+# nothing and exits 0. No exceptions are passed: the chart must comply by itself
+mapfile -t policies < <(grep -l '^kind: ValidatingPolicy$' platform/policies/*.yaml)
+output=$(kyverno apply "${policies[@]}" --resource "${rendered}" --remove-color 2>&1) || {
+  echo "${output}"
+  echo "ERROR: the rendered service violates a policy" >&2
+  exit 1
+}
+echo "${output}"
+applied=$(sed -n 's/^Applying \([0-9]*\) policy rule.*/\1/p' <<<"${output}")
+if [ -z "${applied}" ] || [ "${applied}" -lt "${#policies[@]}" ]; then
+  echo "ERROR: kyverno did not apply all ${#policies[@]} policies" >&2
+  exit 1
+fi
