@@ -30,6 +30,10 @@ env:
   # the same way
   KYVERNO_VERSION: v1.19.1
   KYVERNO_SHA256: b38228f367fc0fdc2b08f4c83ea50ac5f16c60ff8d62d76a66157c33c47b70ae
+  # Same Helm as on the workstation; it renders the charts for the policy check
+  HELM_VERSION: v3.22.0
+  HELM_SHA256: 1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb
+  PYYAML_VERSION: 6.0.3
   KUBECONFORM_VERSION: v0.8.0
   KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
   # CRD schemas (Argo CD, Kyverno) come from datreeio/CRDs-catalog, pinned to
@@ -103,9 +107,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install kyverno and kubeconform
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install PyYAML
+        run: pip install "PyYAML==${PYYAML_VERSION}"
+      - name: Install kyverno, kubeconform and helm
         working-directory: ${{ runner.temp }}
         run: |
+          curl -fsSLo helm.tar.gz \
+            "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
           curl -fsSLo kyverno.tar.gz \
             "https://github.com/kyverno/kyverno/releases/download/${KYVERNO_VERSION}/kyverno-cli_${KYVERNO_VERSION}_linux_x86_64.tar.gz"
           curl -fsSLo kubeconform.tar.gz \
@@ -113,10 +124,12 @@ jobs:
           sha256sum -c - <<EOF
           ${KYVERNO_SHA256}  kyverno.tar.gz
           ${KUBECONFORM_SHA256}  kubeconform.tar.gz
+          ${HELM_SHA256}  helm.tar.gz
           EOF
           mkdir -p "${RUNNER_TEMP}/bin"
           tar -xzf kyverno.tar.gz -C "${RUNNER_TEMP}/bin" kyverno
           tar -xzf kubeconform.tar.gz -C "${RUNNER_TEMP}/bin" kubeconform
+          tar -xzf helm.tar.gz -C "${RUNNER_TEMP}/bin" --strip-components=1 linux-amd64/helm
           echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
       # Helm values files are not manifests, so only the directories that hold
       # Kubernetes resources are checked
@@ -129,6 +142,11 @@ jobs:
           platform/apps platform/bootstrap platform/policies
       - name: kyverno test
         run: kyverno test tests/policies
+      # Renders every chart in platform/apps with its pinned version and values
+      # and applies the policies to the workloads, Helm hook Jobs included.
+      # Fetches the charts from their public Helm repositories
+      - name: chart policies
+        run: scripts/check-chart-policies.py
 
   # The only required check. "if: always()" matters: a skipped job counts as
   # passed for a required check, so this job must run and fail explicitly when
