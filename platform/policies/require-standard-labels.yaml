@@ -9,13 +9,12 @@ metadata:
     policies.kyverno.io/title: Require standard labels
     policies.kyverno.io/severity: medium
 spec:
-  # New policies start in Audit: violations show up in PolicyReports and nothing is
-  # rejected. Change to [Deny, Audit] only once the reports are clean or every finding
-  # has a narrow, documented exception.
+  # Deny: reject violating resources at admission. Audit: keep recording PolicyReports.
+  # The policy ran in Audit first; it was switched once the reports were clean (#27).
   # Fail closed: if Kyverno is down, matching resources are rejected rather than
   # admitted unchecked (the namespaces below are excluded, so the cluster can recover)
   failurePolicy: Fail
-  validationActions: [Audit]
+  validationActions: [Deny, Audit]
   evaluation:
     background:
       enabled: true
@@ -31,6 +30,13 @@ spec:
         apiVersions: [v1]
         operations: [CREATE, UPDATE]
         resources: [deployments, statefulsets, daemonsets]
+      # Jobs too, Helm hook Jobs included: a Job whose pods would be rejected is
+      # created fine and then never completes, which blocks an Argo CD sync without
+      # an error. Rejecting the Job itself fails loudly
+      - apiGroups: [batch]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [jobs, cronjobs]
     namespaceSelector:
       matchExpressions:
         - key: kubernetes.io/metadata.name
@@ -45,7 +51,13 @@ spec:
     # A Pod has no pod template; for a controller these are the labels its pods get
     - name: templateLabels
       expression: >-
-        object.kind == 'Pod' ? {} : object.spec.template.?metadata.?labels.orValue({})
+        object.kind == 'Pod' ? {} :
+        object.kind == 'CronJob' ? object.spec.jobTemplate.spec.template.?metadata.?labels.orValue({}) :
+        object.spec.template.?metadata.?labels.orValue({})
+    # The Jobs of a CronJob get their labels from its job template, not from the CronJob
+    - name: jobTemplateLabels
+      expression: >-
+        object.kind == 'CronJob' ? object.spec.jobTemplate.?metadata.?labels.orValue({}) : {}
   validations:
     - expression: >-
         variables.required.all(l, l in variables.labels && variables.labels[l] != '')
@@ -58,5 +70,12 @@ spec:
         variables.required.all(l, l in variables.templateLabels && variables.templateLabels[l] != '')
       message: >-
         Set the labels app.kubernetes.io/name, app.kubernetes.io/part-of and
+        app.kubernetes.io/managed-by, each with a non-empty value, in the pod template's
+        metadata.labels as well: pods get their labels from the pod template.
+    - expression: >-
+        object.kind != 'CronJob' ||
+        variables.required.all(l, l in variables.jobTemplateLabels && variables.jobTemplateLabels[l] != '')
+      message: >-
+        Set the labels app.kubernetes.io/name, app.kubernetes.io/part-of and
         app.kubernetes.io/managed-by, each with a non-empty value, in
-        spec.template.metadata.labels as well: pods get their labels from the pod template.
+        spec.jobTemplate.metadata.labels as well: the Jobs of a CronJob get their labels from there.

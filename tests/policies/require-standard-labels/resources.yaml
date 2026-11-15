@@ -295,18 +295,157 @@ spec:
         - name: app
           image: ghcr.io/example/app:1.0.0
 ---
-# Edge: Jobs are not matched themselves (their pods are, as Pods): no result at all
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: unmatched-job
+  name: good-job
   namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/managed-by: Helm
 spec:
   template:
     metadata:
-      annotations: {}
+      labels:
+        app.kubernetes.io/name: app
+        app.kubernetes.io/part-of: shop
+        app.kubernetes.io/managed-by: Helm
     spec:
       restartPolicy: Never
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: good-cronjob
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/managed-by: Helm
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app
+        app.kubernetes.io/part-of: shop
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: app
+            app.kubernetes.io/part-of: shop
+            app.kubernetes.io/managed-by: Helm
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: app
+              image: ghcr.io/example/app:1.0.0
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bad-job-no-labels
+  namespace: demo
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+# Edge: a Helm hook Job like this is created fine, then its pod is rejected and the
+# sync hangs. The policy rejects the Job instead
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bad-job-template-unlabelled
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/managed-by: Helm
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+# Edge: the Jobs this CronJob creates would carry no labels and be rejected
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bad-cronjob-job-template-unlabelled
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/managed-by: Helm
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: app
+            app.kubernetes.io/part-of: shop
+            app.kubernetes.io/managed-by: Helm
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: app
+              image: ghcr.io/example/app:1.0.0
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bad-cronjob-pod-template-unlabelled
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/managed-by: Helm
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app
+        app.kubernetes.io/part-of: shop
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: app
+              image: ghcr.io/example/app:1.0.0
+---
+# Edge: ReplicaSets are not matched (a Deployment's ReplicaSet copies its pod
+# template, which is checked on the Deployment): no result at all
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: unmatched-replicaset
+  namespace: demo
+spec:
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
       containers:
         - name: app
           image: ghcr.io/example/app:1.0.0
