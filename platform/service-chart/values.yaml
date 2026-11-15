@@ -1,0 +1,49 @@
+# Values of the platform's service chart. A service keeps its own copy of the
+# values it changes in its repository (deploy/values.yaml); values.schema.json
+# validates it. Everything not listed here (labels, securityContext, probes) is
+# set by the chart so that the workload passes the platform's policies.
+
+# Name of the service: names the Deployment, the Service and the ServiceMonitor
+name: ""
+
+# The system the service belongs to (app.kubernetes.io/part-of).
+# Defaults to the namespace, which is the workload's name on the platform
+partOf: ""
+
+image:
+  # Image without a tag, e.g. ghcr.io/example/hello-service
+  repository: ""
+  # Immutable tag, e.g. the commit SHA the image was built from. Never "latest"
+  tag: ""
+
+replicas: 2
+
+# Port the container listens on. Health and metrics endpoints are served on it too
+port: 8080
+
+health:
+  # Liveness: the process is alive. A failure restarts the container
+  livenessPath: /healthz
+  # Readiness: the service can take traffic. A failure takes the pod out of the Service
+  readinessPath: /readyz
+
+metrics:
+  # Scraped by Prometheus through a ServiceMonitor: observability by default
+  enabled: true
+  path: /metrics
+  interval: 30s
+
+# Memory request and limit are required by policy. No CPU limit on purpose: it throttles
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
+
+# Plain environment variables as name: value. Secrets do not belong here
+env: {}
+
+# Numeric user and group the container runs as. 65532 is "nonroot" in distroless images
+runAsUser: 65532
+runAsGroup: 65532

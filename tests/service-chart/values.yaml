@@ -1,0 +1,17 @@
+# Example values for the platform's service chart. scripts/check-service-chart.sh
+# renders the chart with them and checks the result against the policies. This
+# is also what a service's deploy/values.yaml looks like.
+name: example
+image:
+  repository: ghcr.io/example/example-service
+  tag: 0123456789abcdef0123456789abcdef01234567
+port: 8080
+replicas: 2
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
+env:
+  LOG_LEVEL: info
