@@ -264,20 +264,19 @@ Before this, every alert went to a receiver called `null`: the rules fired and n
 
 **Testing the pipeline**
 
-A test alert is posted straight to Alertmanager through the API server; it takes the same route as a real one and resolves by itself after five minutes:
+A test alert is added with `amtool`, which ships in the Alertmanager image. It takes the same route as a real alert and resolves by itself after five minutes:
 
 ```bash
-cat > /tmp/test-alert.json <<JSON
-[{"labels": {"alertname": "PlatformTestAlert", "severity": "warning", "namespace": "monitoring"},
-  "annotations": {"summary": "Test alert from the platform: the route to Discord works"},
-  "endsAt": "$(date -u -d '+5 minutes' +%Y-%m-%dT%H:%M:%SZ)"}]
-JSON
-kubectl create --raw \
-  "/api/v1/namespaces/monitoring/services/kube-prometheus-stack-alertmanager:9093/proxy/api/v2/alerts" \
-  -f /tmp/test-alert.json
+kubectl -n monitoring exec alertmanager-kube-prometheus-stack-alertmanager-0 -c alertmanager -- \
+  amtool alert add PlatformTestAlert severity=warning namespace=monitoring \
+  --annotation='summary="Test alert from the platform: the route to Discord works"' \
+  --end="$(date -u -d '+5 minutes' +%Y-%m-%dT%H:%M:%SZ)" \
+  --alertmanager.url=http://localhost:9093
 ```
 
-The message appears in the Discord channel after the group wait of 30 seconds, and a "resolved" message follows when the alert ends.
+The message appears in the Discord channel after the group wait of 30 seconds, and a "resolved" message follows when the alert ends. To see whether the notification left Alertmanager, look at its own counters: `alertmanager_notifications_total{integration="discord"}` goes up by one, and `alertmanager_notifications_failed_total{integration="discord"}` stays at zero.
+
+Posting the alert as JSON through the API server proxy (`kubectl create --raw`) does not work: the request is rejected with `UnsupportedMediaType`.
 
 ## Security
 
