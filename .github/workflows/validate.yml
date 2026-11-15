@@ -49,7 +49,9 @@ jobs:
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
           terraform_wrapper: false
+      # From infra/terraform, so the modules next to the root are checked too
       - name: terraform fmt
+        working-directory: infra/terraform
         run: terraform fmt -check -recursive -diff
       # No backend and no variables: validate only needs the provider schema
       - name: terraform init
