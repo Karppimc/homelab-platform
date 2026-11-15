@@ -139,6 +139,7 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - **Least privilege** for every service account and token
 - Every non-obvious design choice gets a short rationale in the README "Design decisions" table (ADRs planned in `docs/adr/`)
 - **Every workload must pass the Kyverno policies:** memory request + limit on every container (including init and Helm hook containers), pinned image tag, `runAsNonRoot: true` with a numeric `runAsUser` when the image sets `USER` by name. Before adding a chart, bumping a chart version or changing a policy, run `scripts/check-chart-policies.py` (CI runs it too): it renders every chart and checks all workloads, **including Helm hook Jobs**: background scans never see hooks, and a rejected hook blocks the whole sync (for Argo CD itself, that means break glass)
+- **Standard labels:** `require-standard-labels` (Audit for now) expects `app.kubernetes.io/name`, `part-of` and `managed-by` on Deployments, StatefulSets, DaemonSets, their pod templates and Pods. Set them on new workloads from the start. `scripts/check-chart-policies.py` prints violations of audit-only policies as warnings and fails only on policies that deny
 - **Every policy change comes with test cases** in `tests/policies/<policy>/`: at least one good, one bad and the edge cases. A resource that a policy must not match (excluded namespace, PolicyException) is asserted with `result: skip`; any other expected result passes silently for it
 - **CI versions are pinned in one place**, the `env` block of `.github/workflows/validate.yml`: actions by commit SHA, binaries by SHA256, the CRD schema catalog by commit. Keep the Kyverno CLI version equal to the cluster's
 - CI has no vault password: `ansible-lint` runs with a placeholder password file, which is enough because the syntax check never decrypts `vault.yml`. Never add the real password as a GitHub secret for linting
@@ -157,7 +158,7 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - [x] Phase 2 – Kubernetes: 3-node k3s cluster via Terraform + Ansible
 - [x] Phase 3 – GitOps: Argo CD (chart 10.10.2 / v3.5.4), app-of-apps, self-management, podinfo demo, UI via Traefik Ingress
 - [x] Phase 4 – Observability: kube-prometheus-stack 92.3.0, Loki 7.3.0 (single binary), Alloy 1.13.1, podinfo ServiceMonitor
-- [x] Phase 5 – Policy as code: Kyverno 3.9.1 (v1.19.1); require-memory-limits, disallow-latest-tag, require-run-as-non-root enforced (Deny, failurePolicy Fail); one exception (Alloy runs as root); control plane tainted
+- [x] Phase 5 – Policy as code: Kyverno 3.9.1 (v1.19.1); require-memory-limits, disallow-latest-tag, require-run-as-non-root enforced (Deny, failurePolicy Fail); require-standard-labels in Audit (#13; findings in podinfo, Grafana, Loki, Alloy, Prometheus and Alertmanager pods still open); one exception (Alloy runs as root); control plane tainted
 - [ ] **Phase 6 – Golden path service template + CI (next)**
 - [ ] Phase 7 – Self-service CLI / Backstage
 

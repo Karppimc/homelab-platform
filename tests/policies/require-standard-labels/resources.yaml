@@ -1,0 +1,341 @@
+# Test resources for require-standard-labels. Never applied to the cluster: Argo CD
+# only syncs platform/.
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-pod
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/managed-by: Helm
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: good-pod-extra-labels
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/managed-by: Helm
+    team: platform
+    app.kubernetes.io/version: "1.0.0"
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-pod-no-labels
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-pod-missing-name
+  namespace: demo
+  labels:
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/managed-by: Helm
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-pod-missing-part-of
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/managed-by: Helm
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-pod-missing-managed-by
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+# Edge: a label that is present but empty says nothing
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-pod-empty-value
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: ""
+    app.kubernetes.io/managed-by: Helm
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+# Edge: the short "app" label is not a substitute
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-pod-other-labels-only
+  namespace: demo
+  labels:
+    app: app
+    team: platform
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: good-deployment
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+        app.kubernetes.io/name: app
+        app.kubernetes.io/part-of: shop
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: good-statefulset
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: app
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+        app.kubernetes.io/name: app
+        app.kubernetes.io/part-of: shop
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: good-daemonset
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+        app.kubernetes.io/name: app
+        app.kubernetes.io/part-of: shop
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-deployment-no-labels
+  namespace: demo
+spec:
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bad-statefulset-missing-part-of
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: app
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+        app.kubernetes.io/name: app
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: bad-daemonset-missing-managed-by
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+spec:
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+        app.kubernetes.io/name: app
+        app.kubernetes.io/part-of: shop
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+# Edge: what most Helm charts do. The Deployment is labelled, but its pods would not be
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-deployment-template-unlabelled
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+# Edge: the pods would be labelled, but the Deployment itself is not
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-deployment-only-template-labelled
+  namespace: demo
+spec:
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+        app.kubernetes.io/name: app
+        app.kubernetes.io/part-of: shop
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+# Edge: Jobs are not matched themselves (their pods are, as Pods): no result at all
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: unmatched-job
+  namespace: demo
+spec:
+  template:
+    metadata:
+      annotations: {}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
+---
+# In an excluded namespace: the policy must not evaluate it at all
+apiVersion: v1
+kind: Pod
+metadata:
+  name: excluded-kube-system
+  namespace: kube-system
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/example/app:1.0.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: excluded-kyverno
+  namespace: kyverno
+spec:
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/example/app:1.0.0
