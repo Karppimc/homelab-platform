@@ -1,0 +1,10 @@
+# Namespace baseline of the reference service: the example created from
+# Karppimc/service-template. Schema: platform/namespace-baseline/
+name: reference
+owner: platform
+quota: small
+sourceRepos:
+  # The platform's service chart lives in this repository
+  - https://github.com/karppimc/homelab-platform.git
+  # deploy/values.yaml of the service
+  - https://github.com/karppimc/reference-service.git
