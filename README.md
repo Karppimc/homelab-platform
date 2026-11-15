@@ -87,6 +87,7 @@ homelab-platform/
 │   └── monitoring/       # kube-prometheus-stack, Loki and Alloy values
 ├── tests/
 │   └── policies/         # Kyverno CLI test cases: good, bad and edge-case pods per policy
+├── scripts/              # chart policy check: render every chart, apply the policies
 ├── .github/workflows/    # validate: static checks on every pull request
 ├── .gitattributes
 ├── .gitignore
@@ -184,6 +185,7 @@ Security is treated as a platform feature, not an afterthought.
 | Few, stable log labels | Alloy attaches only namespace, pod, container, node and app; anything high-cardinality stays in the log line to keep Loki's index small |
 | Audit before Enforce | Policies first ran in Audit/Warn mode; every finding was fixed or given an exception before switching to Deny, so enforcement broke nothing. Helm hook Jobs were checked separately because background scans never see them |
 | Policies are tested like code | Every policy has good, bad and edge-case pods under `tests/policies/`, run with `kyverno test` in CI using the same Kyverno version as the cluster; a policy change that would let a bad pod through, or widen an exception, fails the pull request |
+| Charts are checked against the policies before they are merged | CI renders every chart with the version and values from its Argo CD Application and applies the Kyverno policies to the workloads, Helm hook Jobs included. Background scans never see hook Jobs, and a rejected hook blocks the whole sync, so a chart upgrade that breaks a policy has to fail the pull request, not the cluster |
 | One required CI check | The `validate` workflow runs Terraform, Ansible, YAML and Kubernetes checks as separate jobs, and a final `validate` job passes only if all of them did; branch protection requires that single name, so jobs can change without touching the ruleset. No job needs credentials or network access to the homelab |
 | Protected `main`, no bypass | Argo CD deploys whatever lands on `main`, so a commit there is a deployment. A ruleset allows changes only through a pull request with a green `validate` check, squash-merged; nobody can push directly or force push, the owner included, so the cluster only ever runs validated commits |
 | Narrow, centralised policy exceptions | Exceptions target one policy and one workload (Alloy must run as root to read node log files) and are honoured only in the `kyverno` namespace, so teams cannot exempt themselves |
