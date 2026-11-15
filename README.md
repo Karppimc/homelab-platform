@@ -85,6 +85,7 @@ homelab-platform/
 │   ├── demo/             # podinfo demo app values
 │   ├── kyverno/          # Kyverno Helm values
 │   ├── policies/         # Kyverno ValidatingPolicies (CEL)
+│   ├── alerts/           # PrometheusRules for Argo CD and Kyverno
 │   ├── monitoring/       # kube-prometheus-stack, Loki and Alloy values
 │   ├── namespace-baseline/  # Helm chart: namespace, quota, network policies, Argo CD project
 │   ├── service-chart/    # Helm chart: Deployment, Service and ServiceMonitor for a service
@@ -238,6 +239,46 @@ A new version is released by changing `image.tag` in the service's repository.
 
 What the baseline does not do for you: traffic leaving the namespace (an external API, a database elsewhere) is denied until the workload adds its own NetworkPolicy, and removing the workload file leaves the namespace in place on purpose; deleting it is a deliberate, manual step.
 
+## Alerting
+
+Alertmanager sends platform alerts to one Discord channel. The webhook URL is a secret: it lives in Ansible Vault, `bootstrap-secrets.yml` writes it into the cluster, and Alertmanager reads it from a mounted file, so it is never in Git or in the Alertmanager configuration.
+
+**What alerts exist**
+
+| Source | Rules | Examples |
+|---|---|---|
+| kube-prometheus-stack defaults | 134 (32 critical, 93 warning, 7 info) | `KubePodCrashLooping`, `KubeNodeNotReady`, `KubeNodePressure` (memory, disk and PID pressure), `NodeFilesystemAlmostOutOfSpace`, `TargetDown`, `KubePersistentVolumeFillingUp` |
+| `platform/alerts/argocd.yaml` | 3 | An application is Degraded for 10 minutes or OutOfSync for 15; the application metrics are missing |
+| `platform/alerts/kyverno.yaml` | 2 | A denying policy rejected a request; the background scan found a resource that violates a denying policy |
+
+Rules for the control-plane components that k3s runs inside one process (etcd, scheduler, controller manager, kube-proxy) are switched off: there is nothing to scrape, so they would only produce false alarms.
+
+**Where they go**
+
+| Alerts | Receiver |
+|---|---|
+| `Watchdog` (always firing, proves the pipeline works), `InfoInhibitor`, everything with `severity: info` | Nowhere |
+| Everything else, grouped by alert name and namespace, repeated every 12 hours while firing, with a message when resolved | Discord |
+
+Before this, every alert went to a receiver called `null`: the rules fired and nobody heard them.
+
+**Testing the pipeline**
+
+A test alert is posted straight to Alertmanager through the API server; it takes the same route as a real one and resolves by itself after five minutes:
+
+```bash
+cat > /tmp/test-alert.json <<JSON
+[{"labels": {"alertname": "PlatformTestAlert", "severity": "warning", "namespace": "monitoring"},
+  "annotations": {"summary": "Test alert from the platform: the route to Discord works"},
+  "endsAt": "$(date -u -d '+5 minutes' +%Y-%m-%dT%H:%M:%SZ)"}]
+JSON
+kubectl create --raw \
+  "/api/v1/namespaces/monitoring/services/kube-prometheus-stack-alertmanager:9093/proxy/api/v2/alerts" \
+  -f /tmp/test-alert.json
+```
+
+The message appears in the Discord channel after the group wait of 30 seconds, and a "resolved" message follows when the alert ends.
+
 ## Security
 
 Security is treated as a platform feature, not an afterthought.
@@ -262,6 +303,7 @@ Security is treated as a platform feature, not an afterthought.
 | kube-prometheus-stack over lighter alternatives | The de facto standard for Kubernetes metrics, with ready-made dashboards and alerts; the cluster has room for it, unlike in later phases |
 | Loki in single-binary mode on the filesystem | One pod, no object storage or memcached caches; the scalable modes cost more memory than the whole log volume justifies here |
 | Few, stable log labels | Alloy attaches only namespace, pod, container, node and app; anything high-cardinality stays in the log line to keep Loki's index small |
+| Alerts must reach a person | Alertmanager routes everything above info level to one Discord channel; an alert nobody receives is not monitoring. One channel on purpose: with one person on call, routing by team would only add places to forget to look. The webhook URL comes from Ansible Vault through a mounted Secret, not from Git |
 | Audit before Enforce | Policies first ran in Audit/Warn mode; every finding was fixed or given an exception before switching to Deny, so enforcement broke nothing. Helm hook Jobs were checked separately because background scans never see them |
 | Policies are tested like code | Every policy has good, bad and edge-case pods under `tests/policies/`, run with `kyverno test` in CI using the same Kyverno version as the cluster; a policy change that would let a bad pod through, or widen an exception, fails the pull request |
 | Charts are checked against the policies before they are merged | CI renders every chart with the version and values from its Argo CD Application and applies the Kyverno policies to the workloads, Helm hook Jobs included. Policies that deny fail the pull request; policies still in Audit are printed as warnings. Background scans never see hook Jobs, and a rejected hook blocks the whole sync, so a chart upgrade that breaks a policy has to fail the pull request, not the cluster |
