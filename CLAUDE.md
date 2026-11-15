@@ -58,13 +58,18 @@ platform/                  GitOps: everything here is deployed by Argo CD from G
   monitoring/              kube-prometheus-stack, Loki and Alloy values (namespace monitoring)
   namespace-baseline/      local Helm chart, the landing zone of one workload: Namespace, ResourceQuota, LimitRange,
                            NetworkPolicies (default deny) and an AppProject. values.schema.json validates workload files
+  service-chart/           local Helm chart for services: Deployment, Service, ServiceMonitor from a values file that lives
+                           in the service's repo (deploy/values.yaml). Must pass every policy without an exception
   workloads/               one values file per workload (name, owner, quota, sourceRepos); the ApplicationSet
                            platform/apps/workloads.yaml creates an Application baseline-<name> from each
+tests/service-chart/       example values for the service chart (what a service's deploy/values.yaml looks like)
 tests/policies/            Kyverno CLI tests, one directory per policy (kyverno-test.yaml + resources.yaml).
                            Kept outside platform/ on purpose: Argo CD would apply the test pods
 .github/workflows/         validate.yml: CI checks on every PR and on main (required check: validate)
 scripts/                   check-chart-policies.py: renders the charts in platform/apps and applies the Kyverno policies (CI and workstation)
                            check-namespace-baseline.sh: lints the baseline chart and validates its render per workload file
+                           check-service-chart.sh: renders the service chart with tests/service-chart/values.yaml, then
+                           kubeconform, schema negatives and the Kyverno policies
 .yamllint                  yamllint config for the whole repo
 README.md                  Public project description and roadmap
 CLAUDE.md                  This file
@@ -117,6 +122,7 @@ terraform -chdir=infra/terraform/proxmox validate
 yamllint .
 (cd ansible && ansible-lint)
 scripts/check-namespace-baseline.sh   # helm lint + render + kubeconform for every file in platform/workloads
+scripts/check-service-chart.sh        # service chart: lint, render, kubeconform, schema negatives, policies
 kyverno test tests/policies
 scripts/check-chart-policies.py   # helm template every chart in platform/apps, then kyverno apply (hook Jobs included)
 kubeconform -strict -summary -schema-location default \
@@ -146,6 +152,7 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - Every non-obvious design choice gets a short rationale in the README "Design decisions" table (ADRs planned in `docs/adr/`)
 - **Every workload must pass the Kyverno policies:** memory request + limit on every container (including init and Helm hook containers), pinned image tag, `runAsNonRoot: true` with a numeric `runAsUser` when the image sets `USER` by name. Before adding a chart, bumping a chart version or changing a policy, run `scripts/check-chart-policies.py` (CI runs it too): it renders every chart and checks all workloads, **including Helm hook Jobs**: background scans never see hooks, and a rejected hook blocks the whole sync (for Argo CD itself, that means break glass)
 - **New workloads go through the namespace baseline:** add `platform/workloads/<name>.yaml` (file name = `name`) and an Application with `project: <name>`; do not use `CreateNamespace=true` or the `default` project for workloads. The baseline denies egress out of the namespace except DNS: a workload that calls something outside adds its own NetworkPolicy. Removing a workload file does not delete its namespace (`preserveResourcesOnDeletion`, `Prune=false` on the Namespace)
+- **Services use the platform chart:** a service's Application takes `platform/service-chart` from this repo and `deploy/values.yaml` from the service's repo (`$values` ref); both repos go in the workload's `sourceRepos`. Change the chart, not the service, when a policy changes; `scripts/check-service-chart.sh` must pass without exceptions
 - **Standard labels:** `require-standard-labels` (Deny) requires `app.kubernetes.io/name`, `part-of` and `managed-by` on Deployments, StatefulSets, DaemonSets, Jobs, CronJobs, their pod templates (and a CronJob's job template) and Pods, outside `kube-system` and `kyverno`. A chart that does not label its pods needs chart values (`podLabels` and the like) or a narrow PolicyException before it can be deployed. An ad hoc `kubectl run` pod needs the three labels too (`--labels`). `scripts/check-chart-policies.py` prints violations of audit-only policies as warnings and fails only on policies that deny
 - **Every policy change comes with test cases** in `tests/policies/<policy>/`: at least one good, one bad and the edge cases. A resource that a policy must not match (excluded namespace, PolicyException) is asserted with `result: skip`; any other expected result passes silently for it
 - **CI versions are pinned in one place**, the `env` block of `.github/workflows/validate.yml`: actions by commit SHA, binaries by SHA256, the CRD schema catalog by commit. Keep the Kyverno CLI version equal to the cluster's

@@ -1,0 +1,8 @@
+apiVersion: v2
+name: service
+description: >-
+  The paved road for a service on the platform: a Deployment, a Service and a
+  ServiceMonitor rendered from a small values file, compliant with the policies
+  by construction.
+type: application
+version: 0.1.0
