@@ -1,0 +1,21 @@
+# Platform alert rules (PrometheusRule) beyond the defaults of kube-prometheus-stack.
+# Kept separate from the monitoring stack so a rule can be changed or rolled back
+# without touching Prometheus itself.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: alerts
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/karppimc/homelab-platform.git
+    targetRevision: main
+    path: platform/alerts
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
