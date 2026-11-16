@@ -1,0 +1,51 @@
+# cert-manager Helm values (chart v1.21.3)
+# Issues the Ingress certificates from the platform's local CA. Small and single
+# replica, like everything else on this cluster.
+
+# The CRDs ship with the chart and are kept if the chart is ever removed, so the
+# Certificates and Issuers in the cluster are not deleted with it
+crds:
+  enabled: true
+  keep: true
+
+global:
+  # The chart sets name, instance and managed-by but not part-of, which
+  # require-standard-labels asks for on the workloads and their pods
+  commonLabels:
+    app.kubernetes.io/part-of: cert-manager
+
+# Controller. Memory request and limit are required by policy
+resources:
+  requests:
+    cpu: 10m
+    memory: 48Mi
+  limits:
+    memory: 128Mi
+
+webhook:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 24Mi
+    limits:
+      memory: 64Mi
+
+# Injects the CA into webhook configurations; it caches Secrets and CRDs, so it
+# needs the most memory of the three
+cainjector:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 48Mi
+    limits:
+      memory: 160Mi
+
+# A post-install hook Job that waits for the API to answer. Under Argo CD it would
+# run on every sync, and Argo CD already reports whether the pods are healthy
+startupapicheck:
+  enabled: false
+
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: true

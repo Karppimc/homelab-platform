@@ -4,3 +4,6 @@
 collections:
   - name: kubernetes.core
     version: 6.2.0
+  # Local CA for cert-manager (bootstrap-secrets.yml)
+  - name: community.crypto
+    version: 3.0.5

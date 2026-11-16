@@ -83,6 +83,8 @@ homelab-platform/
 │   ├── apps/             # one Argo CD Application per platform component
 │   ├── argocd/           # Argo CD Helm values
 │   ├── demo/             # podinfo demo app values
+│   ├── cert-manager/     # cert-manager Helm values
+│   ├── cert-manager-issuers/  # ClusterIssuer for the local CA
 │   ├── kyverno/          # Kyverno Helm values
 │   ├── policies/         # Kyverno ValidatingPolicies (CEL)
 │   ├── alerts/           # PrometheusRules for Argo CD and Kyverno
@@ -162,6 +164,34 @@ kubectl -n argocd port-forward svc/argocd-server 8080:80   # http://localhost:80
 ```
 
 Grafana is published the same way at `https://grafana.home.arpa`.
+
+### TLS
+
+The Ingresses get their certificates from cert-manager, signed by the platform's own CA. `bootstrap-secrets.yml` creates the CA once on the workstation (`~/.homelab-ca/`, outside the repository) and writes it into the cluster, so a rebuilt cluster keeps the same CA. The CA is name-constrained to `home.arpa`: a device that trusts it accepts its certificates for platform names only.
+
+Trust the CA once per device. On Windows, from WSL:
+
+```bash
+cp ~/.homelab-ca/ca.crt /mnt/c/Users/<you>/Downloads/homelab-ca.crt
+```
+
+and then in PowerShell (current user's store, no administrator rights needed):
+
+```powershell
+certutil -user -addstore Root "$env:USERPROFILE\Downloads\homelab-ca.crt"
+```
+
+Chrome and Edge use the Windows store; Firefox has its own. A new Ingress gets a certificate with one annotation and a secret name:
+
+```yaml
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca
+spec:
+  tls:
+    - secretName: my-service-tls
+      hosts: [my-service.home.arpa]
+```
 
 The whole environment can be torn down and rebuilt from scratch with `terraform destroy`, `terraform apply` and the playbooks.
 
@@ -305,6 +335,7 @@ Security is treated as a platform feature, not an afterthought.
 | kube-prometheus-stack over lighter alternatives | The de facto standard for Kubernetes metrics, with ready-made dashboards and alerts; the cluster has room for it, unlike in later phases |
 | Loki in single-binary mode on the filesystem | One pod, no object storage or memcached caches; the scalable modes cost more memory than the whole log volume justifies here |
 | Few, stable log labels | Alloy attaches only namespace, pod, container, node and app; anything high-cardinality stays in the log line to keep Loki's index small |
+| A local CA instead of self-signed certificates | cert-manager signs every Ingress certificate with one CA that lives outside the cluster and outside Git, so it survives a rebuild and is trusted once per device. It is name-constrained to `home.arpa`, which limits what a leaked key could be used for. Let's Encrypt is not an option: `home.arpa` is not a public domain |
 | Alerts must reach a person | Alertmanager routes everything above info level to one Discord channel; an alert nobody receives is not monitoring. One channel on purpose: with one person on call, routing by team would only add places to forget to look. The webhook URL comes from Ansible Vault through a mounted Secret, not from Git |
 | Audit before Enforce | Policies first ran in Audit/Warn mode; every finding was fixed or given an exception before switching to Deny, so enforcement broke nothing. Helm hook Jobs were checked separately because background scans never see them |
 | Policies are tested like code | Every policy has good, bad and edge-case pods under `tests/policies/`, run with `kyverno test` in CI using the same Kyverno version as the cluster; a policy change that would let a bad pod through, or widen an exception, fails the pull request |

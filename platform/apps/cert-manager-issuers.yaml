@@ -1,0 +1,28 @@
+# Issuers for cert-manager. Separate from the cert-manager install: a ClusterIssuer
+# can be applied only once the CRDs exist, so this Application retries until then.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-issuers
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/karppimc/homelab-platform.git
+    targetRevision: main
+    path: platform/cert-manager-issuers
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # Do not fail the dry run while cert-manager's CRDs are still being installed
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
