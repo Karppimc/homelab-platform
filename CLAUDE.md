@@ -67,12 +67,15 @@ platform/                  GitOps: everything here is deployed by Argo CD from G
                            Karppimc/reference-service (deploy/values.yaml); a release is an image.tag change in that repo
   workloads/               one values file per workload (name, owner, quota, sourceRepos); the ApplicationSet
                            platform/apps/workloads.yaml creates an Application baseline-<name> from each
+tests/alerts/              promtool unit tests for the rules in platform/alerts/ (<name>_test.yaml per manifest)
 tests/service-chart/       example values for the service chart (what a service's deploy/values.yaml looks like)
 tests/policies/            Kyverno CLI tests, one directory per policy (kyverno-test.yaml + resources.yaml).
                            Kept outside platform/ on purpose: Argo CD would apply the test pods
 .github/workflows/         validate.yml: CI checks on every PR and on main (required check: validate)
 scripts/                   check-chart-policies.py: renders the charts in platform/apps and applies the Kyverno policies (CI and workstation)
                            check-namespace-baseline.sh: lints the baseline chart and validates its render per workload file
+                           check-alert-rules.py: extracts the rule groups from platform/alerts/ and runs promtool
+                           check rules and test rules with tests/alerts/; fails if an alert has no test
                            check-service-chart.sh: renders the service chart with tests/service-chart/values.yaml, then
                            kubeconform, schema negatives and the Kyverno policies
 .yamllint                  yamllint config for the whole repo
@@ -90,7 +93,7 @@ All work happens in **WSL (Debian)**, not on the Windows filesystem. Ansible ref
 
 - Repo: `~/homelab-platform`
 - Tools: Terraform, Ansible (via pipx, with `kubernetes==37.0.1` injected for `kubernetes.core.k8s`), kubectl, Helm v3.22.0 (`~/.local/bin`, SHA256-verified)
-- Lint and test tools, same versions as CI (`.github/workflows/validate.yml`): ansible-lint 26.10.1 (pipx, with `ansible-core==2.19.14` pinned in its venv), yamllint 1.38.0 (pipx), Kyverno CLI v1.19.1 and kubeconform v0.8.0 (`~/.local/bin`, SHA256-verified). `scripts/check-chart-policies.py` also needs Helm and PyYAML (CI pins PyYAML 6.0.3)
+- Lint and test tools, same versions as CI (`.github/workflows/validate.yml`): ansible-lint 26.10.1 (pipx, with `ansible-core==2.19.14` pinned in its venv), yamllint 1.38.0 (pipx), Kyverno CLI v1.19.1 and kubeconform v0.8.0 (`~/.local/bin`, SHA256-verified). `scripts/check-alert-rules.py` needs `promtool` 3.15.0 (from the Prometheus release tarball; keep it equal to the cluster's Prometheus). `scripts/check-chart-policies.py` also needs Helm and PyYAML (CI pins PyYAML 6.0.3)
 - `KUBECONFIG=~/.kube/homelab.yaml` (fetched by the k3s playbook, exported in `~/.bashrc`). Without it kubectl falls back to `~/.kube/config`, which points at an old Docker Desktop cluster
 - SSH key loaded via `keychain`
 
@@ -129,6 +132,7 @@ yamllint .
 scripts/check-namespace-baseline.sh   # helm lint + render + kubeconform for every file in platform/workloads
 scripts/check-service-chart.sh        # service chart: lint, render, kubeconform, schema negatives, policies
 kyverno test tests/policies
+scripts/check-alert-rules.py          # promtool check + unit tests for platform/alerts (needs promtool on PATH)
 scripts/check-chart-policies.py   # helm template every chart in platform/apps, then kyverno apply (hook Jobs included)
 kubeconform -strict -summary -schema-location default \
   -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
@@ -163,7 +167,7 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - **Every policy change comes with test cases** in `tests/policies/<policy>/`: at least one good, one bad and the edge cases. A resource that a policy must not match (excluded namespace, PolicyException) is asserted with `result: skip`; any other expected result passes silently for it
 - **CI versions are pinned in one place**, the `env` block of `.github/workflows/validate.yml`: actions by commit SHA, binaries by SHA256, the CRD schema catalog by commit. Keep the Kyverno CLI version equal to the cluster's
 - CI has no vault password: `ansible-lint` runs with a placeholder password file, which is enough because the syntax check never decrypts `vault.yml`. Never add the real password as a GitHub secret for linting
-- **Alerts:** everything except `Watchdog`, `InfoInhibitor` and `severity: info` goes to Discord. New platform rules go in `platform/alerts/` as PrometheusRules; evaluate the expression against the live Prometheus before the PR, and remember that `increase()` does not see a counter series that has just appeared (see the comment in `platform/alerts/kyverno.yaml`). Local `ansible-lint` cannot resolve `kubernetes.core` on this workstation; CI can, use `ansible-playbook --syntax-check` locally
+- **Alerts:** everything except `Watchdog`, `InfoInhibitor` and `severity: info` goes to Discord. New platform rules go in `platform/alerts/` as PrometheusRules, and **every rule change comes with test cases** in `tests/alerts/` (it fires when it should and stays quiet otherwise); `scripts/check-alert-rules.py` refuses an alert without a test. Also evaluate the expression against the live Prometheus before the PR: the tests use made-up series, the cluster has the real label names. Remember that `increase()` does not see a counter series that has just appeared (see the comment in `platform/alerts/kyverno.yaml`). Local `ansible-lint` cannot resolve `kubernetes.core` on this workstation; CI can, use `ansible-playbook --syntax-check` locally
 - When triggering a sync by patching `.operation`, pass the app's `syncOptions` too (e.g. `ServerSideApply=true`); otherwise Argo CD falls back to client-side apply and large CRDs fail
 
 ## Working style
@@ -192,5 +196,5 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - Argo CD memory limits were sized for an empty cluster and have been raised twice (controller 1Gi, repo-server 512Mi); with Kyverno added the controller idles around 460 Mi → re-check when later components are added
 - kube-prometheus-stack admission webhook hook Jobs race with Argo CD hook tracking (`hook-succeeded` deletes the Job before Argo records it: "waiting for deletion of hook" or "Job is missing"). Harmless so far → replace the hook Jobs with cert-manager (`prometheusOperator.admissionWebhooks.certManager`) once cert-manager is installed
 - The chart policy check (`scripts/check-chart-policies.py`) sees only what `helm template` renders: pods that an operator creates from a custom resource (Prometheus, Alertmanager) are checked only by background scans in the cluster. It also depends on the public Helm repositories being reachable from CI
-- Alerts go to one Discord channel and nothing checks that the channel still works: if the webhook is deleted, alerts are lost silently (Alertmanager logs the error, `AlertmanagerFailedToSendAlerts` fires into the same dead channel). Short OOM spikes do not show in Prometheus memory graphs (30 s scrape interval). The alert rules in `platform/alerts/` have no unit tests
+- Alerts go to one Discord channel and nothing checks that the channel still works: if the webhook is deleted, alerts are lost silently (Alertmanager logs the error, `AlertmanagerFailedToSendAlerts` fires into the same dead channel). Short OOM spikes do not show in Prometheus memory graphs (30 s scrape interval).
 - Argo CD polls GitHub every ~3 min; for an immediate sync use Refresh in the UI (a GitHub webhook would need a public endpoint)
