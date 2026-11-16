@@ -1,0 +1,17 @@
+# The platform's CA as an issuer for every namespace. An Ingress asks for a
+# certificate with the annotation  cert-manager.io/cluster-issuer: homelab-ca
+#
+# The CA key is not in Git: ansible/playbooks/bootstrap-secrets.yml creates it on
+# the workstation (~/.homelab-ca/) and writes it to the Secret homelab-ca in the
+# cert-manager namespace. The CA is name-constrained to home.arpa.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: homelab-ca
+  labels:
+    app.kubernetes.io/name: homelab-ca
+    app.kubernetes.io/part-of: cert-manager
+    app.kubernetes.io/managed-by: argocd
+spec:
+  ca:
+    secretName: homelab-ca
