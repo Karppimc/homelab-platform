@@ -1,0 +1,182 @@
+# Unit tests for platform/alerts/kyverno.yaml, run by scripts/check-alert-rules.py
+# (promtool test rules). rules/kyverno.yaml is extracted from the PrometheusRule.
+#
+# The series below are Kyverno's counter of policy evaluations. Shortened in the
+# comments as: results{cause, mode, result, kind}.
+rule_files:
+  - rules/kyverno.yaml
+evaluation_interval: 1m
+
+tests:
+  - name: a denial on a counter that already exists fires KyvernoRequestDenied
+    interval: 1m
+    input_series:
+      # One old denial, then a second one at minute 20
+      - series: >-
+          kyverno_validating_policy_results_total{policy_name="require-memory-limits",
+          resource_namespace="demo", resource_kind="Pod", result="fail",
+          policy_validation_mode="Deny", execution_cause="admission_request"}
+        values: '1x19 2x40'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: KyvernoRequestDenied
+        exp_alerts: []
+      - eval_time: 22m
+        alertname: KyvernoRequestDenied
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              policy_name: require-memory-limits
+              resource_namespace: demo
+              resource_kind: Pod
+            exp_annotations:
+              summary: >-
+                Kyverno policy require-memory-limits denied a Pod
+                in demo
+              description: >-
+                Policy require-memory-limits rejected a Pod in namespace
+                demo in the last 10 minutes. If Argo CD made the request,
+                the application is failing to sync.
+      # Ten minutes after the denial the alert is gone again
+      - eval_time: 35m
+        alertname: KyvernoRequestDenied
+        exp_alerts: []
+
+  - name: the very first denial, which creates the series, fires KyvernoRequestDenied
+    interval: 1m
+    input_series:
+      # No series until minute 20: increase() alone would never see this denial
+      - series: >-
+          kyverno_validating_policy_results_total{policy_name="require-standard-labels",
+          resource_namespace="reference", resource_kind="Deployment", result="fail",
+          policy_validation_mode="Deny", execution_cause="admission_request"}
+        values: '_x20 1x40'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: KyvernoRequestDenied
+        exp_alerts: []
+      - eval_time: 22m
+        alertname: KyvernoRequestDenied
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              policy_name: require-standard-labels
+              resource_namespace: reference
+              resource_kind: Deployment
+            exp_annotations:
+              summary: >-
+                Kyverno policy require-standard-labels denied a Deployment
+                in reference
+              description: >-
+                Policy require-standard-labels rejected a Deployment in namespace
+                reference in the last 10 minutes. If Argo CD made the request,
+                the application is failing to sync.
+      - eval_time: 35m
+        alertname: KyvernoRequestDenied
+        exp_alerts: []
+
+  - name: passes, audit-only policies and background results do not fire KyvernoRequestDenied
+    interval: 1m
+    input_series:
+      - series: >-
+          kyverno_validating_policy_results_total{policy_name="require-memory-limits",
+          resource_namespace="demo", resource_kind="Pod", result="pass",
+          policy_validation_mode="Deny", execution_cause="admission_request"}
+        values: '1+1x60'
+      - series: >-
+          kyverno_validating_policy_results_total{policy_name="some-audit-policy",
+          resource_namespace="demo", resource_kind="Pod", result="fail",
+          policy_validation_mode="Audit", execution_cause="admission_request"}
+        values: '1+1x60'
+      - series: >-
+          kyverno_validating_policy_results_total{policy_name="require-memory-limits",
+          resource_namespace="demo", resource_kind="Pod", result="fail",
+          policy_validation_mode="Deny", execution_cause="background_scan"}
+        values: '1+1x60'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: KyvernoRequestDenied
+        exp_alerts: []
+
+  - name: a violation found by the background scan fires KyvernoPolicyViolation
+    interval: 10m
+    input_series:
+      # The scan counts the same violation again on every run
+      - series: >-
+          kyverno_validating_policy_results_total{policy_name="require-run-as-non-root",
+          resource_namespace="demo", resource_kind="Pod", result="fail",
+          policy_validation_mode="Deny", execution_cause="background_scan"}
+        values: '1+1x36'
+    alert_rule_test:
+      - eval_time: 3h
+        alertname: KyvernoPolicyViolation
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              policy_name: require-run-as-non-root
+              resource_namespace: demo
+              resource_kind: Pod
+            exp_annotations:
+              summary: >-
+                A Pod in demo violates
+                policy require-run-as-non-root
+              description: >-
+                The background scan found a Pod in namespace
+                demo that violates the denying policy
+                require-run-as-non-root. See the PolicyReports in that namespace. The alert
+                clears up to two hours after the fix.
+
+  - name: KyvernoPolicyViolation clears two hours after the violation is fixed
+    interval: 10m
+    input_series:
+      # Counted on every scan for three hours, then fixed: the counter stops growing
+      - series: >-
+          kyverno_validating_policy_results_total{policy_name="require-run-as-non-root",
+          resource_namespace="demo", resource_kind="Pod", result="fail",
+          policy_validation_mode="Deny", execution_cause="background_scan"}
+        values: '1+1x18 19x30'
+    alert_rule_test:
+      - eval_time: 4h
+        alertname: KyvernoPolicyViolation
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              policy_name: require-run-as-non-root
+              resource_namespace: demo
+              resource_kind: Pod
+            exp_annotations:
+              summary: >-
+                A Pod in demo violates
+                policy require-run-as-non-root
+              description: >-
+                The background scan found a Pod in namespace
+                demo that violates the denying policy
+                require-run-as-non-root. See the PolicyReports in that namespace. The alert
+                clears up to two hours after the fix.
+      - eval_time: 5h30m
+        alertname: KyvernoPolicyViolation
+        exp_alerts: []
+
+  - name: old ReplicaSets, audit-only policies and admission results do not fire KyvernoPolicyViolation
+    interval: 10m
+    input_series:
+      # A Deployment's old ReplicaSets fail forever: history, not a running violation
+      - series: >-
+          kyverno_validating_policy_results_total{policy_name="require-run-as-non-root",
+          resource_namespace="demo", resource_kind="ReplicaSet", result="fail",
+          policy_validation_mode="Deny", execution_cause="background_scan"}
+        values: '1+1x36'
+      - series: >-
+          kyverno_validating_policy_results_total{policy_name="some-audit-policy",
+          resource_namespace="demo", resource_kind="Pod", result="fail",
+          policy_validation_mode="Audit", execution_cause="background_scan"}
+        values: '1+1x36'
+      - series: >-
+          kyverno_validating_policy_results_total{policy_name="require-run-as-non-root",
+          resource_namespace="demo", resource_kind="Pod", result="fail",
+          policy_validation_mode="Deny", execution_cause="admission_request"}
+        values: '1+1x36'
+    alert_rule_test:
+      - eval_time: 3h
+        alertname: KyvernoPolicyViolation
+        exp_alerts: []
