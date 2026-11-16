@@ -91,7 +91,8 @@ homelab-platform/
 │   ├── service-chart/    # Helm chart: Deployment, Service and ServiceMonitor for a service
 │   └── workloads/        # one file per workload, deployed with the baseline chart
 ├── tests/
-│   └── policies/         # Kyverno CLI test cases: good, bad and edge-case pods per policy
+│   ├── policies/         # Kyverno CLI test cases: good, bad and edge-case pods per policy
+│   └── alerts/           # promtool unit tests for the alert rules
 ├── scripts/              # CI checks that also run on the workstation: chart policies, namespace baseline, service chart
 ├── .github/workflows/    # validate: static checks on every pull request
 ├── .gitattributes
@@ -252,6 +253,8 @@ Alertmanager sends platform alerts to one Discord channel. The webhook URL is a 
 | `platform/alerts/kyverno.yaml` | 2 | A denying policy rejected a request; the background scan found a resource that violates a denying policy |
 
 Rules for the control-plane components that k3s runs inside one process (etcd, scheduler, controller manager, kube-proxy) are switched off: there is nothing to scrape, so they would only produce false alarms.
+
+The platform's own rules are tested like the policies: `tests/alerts/` has `promtool` unit tests for each rule (it fires in the situation it is for and stays quiet otherwise), CI runs them, and a rule without a test fails the build. A wrong alert expression gives no error; the alert just never fires, so this is the only place such a mistake shows up.
 
 **Where they go**
 
