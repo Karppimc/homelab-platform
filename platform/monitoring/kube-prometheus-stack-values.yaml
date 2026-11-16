@@ -179,10 +179,14 @@ grafana:
   ingress:
     enabled: true
     ingressClassName: traefik
+    # cert-manager issues the certificate into the Secret named under tls
+    annotations:
+      cert-manager.io/cluster-issuer: homelab-ca
     hosts:
       - grafana.home.arpa
     tls:
-      - hosts:
+      - secretName: grafana-tls
+        hosts:
           - grafana.home.arpa
   # Sidecars load dashboards and data sources from ConfigMaps
   sidecar:

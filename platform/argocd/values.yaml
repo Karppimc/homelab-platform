@@ -46,6 +46,9 @@ server:
     enabled: true
     ingressClassName: traefik
     hostname: argocd.home.arpa
+    # cert-manager issues the certificate into the Secret argocd-server-tls
+    annotations:
+      cert-manager.io/cluster-issuer: homelab-ca
     tls: true
   resources:
     requests:
