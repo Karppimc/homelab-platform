@@ -1,7 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["name", "image", "replicas", "port", "resources"],
+  "required": [
+    "name",
+    "image",
+    "replicas",
+    "port",
+    "resources"
+  ],
   "properties": {
     "name": {
       "description": "Name of the service",
@@ -14,7 +20,10 @@
     },
     "image": {
       "type": "object",
-      "required": ["repository", "tag"],
+      "required": [
+        "repository",
+        "tag"
+      ],
       "additionalProperties": false,
       "properties": {
         "repository": {
@@ -26,61 +35,134 @@
           "description": "Immutable tag; latest is not allowed",
           "type": "string",
           "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$",
-          "not": { "enum": ["latest"] }
+          "not": {
+            "enum": [
+              "latest"
+            ]
+          }
         }
       }
     },
-    "replicas": { "type": "integer", "minimum": 1, "maximum": 10 },
-    "port": { "type": "integer", "minimum": 1024, "maximum": 65535 },
+    "replicas": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1024,
+      "maximum": 65535
+    },
     "health": {
       "type": "object",
-      "required": ["livenessPath", "readinessPath"],
+      "required": [
+        "livenessPath",
+        "readinessPath"
+      ],
       "additionalProperties": false,
       "properties": {
-        "livenessPath": { "type": "string", "pattern": "^/" },
-        "readinessPath": { "type": "string", "pattern": "^/" }
+        "livenessPath": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "readinessPath": {
+          "type": "string",
+          "pattern": "^/"
+        }
       }
     },
     "metrics": {
       "type": "object",
-      "required": ["enabled", "path", "interval"],
+      "required": [
+        "enabled",
+        "path",
+        "interval"
+      ],
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "path": { "type": "string", "pattern": "^/" },
-        "interval": { "type": "string", "pattern": "^[0-9]+(s|m)$" }
+        "enabled": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "interval": {
+          "type": "string",
+          "pattern": "^[0-9]+(s|m)$"
+        }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "description": "Host name to publish the service at; empty for none. Only *.home.arpa",
+          "type": "string",
+          "pattern": "^(([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+home\\.arpa)?$"
+        }
       }
     },
     "resources": {
       "type": "object",
-      "required": ["requests", "limits"],
+      "required": [
+        "requests",
+        "limits"
+      ],
       "additionalProperties": false,
       "properties": {
         "requests": {
           "type": "object",
-          "required": ["cpu", "memory"],
+          "required": [
+            "cpu",
+            "memory"
+          ],
           "additionalProperties": false,
           "properties": {
-            "cpu": { "type": ["string", "number"] },
-            "memory": { "type": "string", "pattern": "^[0-9]+(Mi|Gi)$" }
+            "cpu": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "memory": {
+              "type": "string",
+              "pattern": "^[0-9]+(Mi|Gi)$"
+            }
           }
         },
         "limits": {
           "type": "object",
-          "required": ["memory"],
+          "required": [
+            "memory"
+          ],
           "additionalProperties": false,
           "properties": {
-            "memory": { "type": "string", "pattern": "^[0-9]+(Mi|Gi)$" }
+            "memory": {
+              "type": "string",
+              "pattern": "^[0-9]+(Mi|Gi)$"
+            }
           }
         }
       }
     },
     "env": {
       "type": "object",
-      "propertyNames": { "pattern": "^[A-Z_][A-Z0-9_]*$" },
-      "additionalProperties": { "type": "string" }
+      "propertyNames": {
+        "pattern": "^[A-Z_][A-Z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
     },
-    "runAsUser": { "type": "integer", "minimum": 1 },
-    "runAsGroup": { "type": "integer", "minimum": 1 }
+    "runAsUser": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "runAsGroup": {
+      "type": "integer",
+      "minimum": 1
+    }
   }
 }

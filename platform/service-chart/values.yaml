@@ -33,6 +33,12 @@ metrics:
   path: /metrics
   interval: 30s
 
+# Publish the service on the LAN over HTTPS. Empty: reachable only inside the cluster.
+# Only *.home.arpa names: the platform CA signs nothing else. The name must resolve
+# to a node (today: the hosts file)
+ingress:
+  host: ""
+
 # Memory request and limit are required by policy. No CPU limit on purpose: it throttles
 resources:
   requests:
