@@ -36,6 +36,27 @@ if [ "$(grep -c '^kind:' "${rendered}")" -lt 3 ]; then
   exit 1
 fi
 
+echo "=== ingress"
+# Without ingress.host there is no Ingress; with it, a valid one. Covered whatever
+# the values file says, so a service's CI checks both shapes too
+with_ingress=$(mktemp --suffix=.yaml)
+trap 'rm -f "${rendered}" "${with_ingress}"' EXIT
+helm template example "${chart}" --namespace example --values "${values}" \
+  --set-string ingress.host= | grep -q '^kind: Ingress$' && {
+  echo "ERROR: an Ingress was rendered without ingress.host" >&2
+  exit 1
+}
+helm template example "${chart}" --namespace example --values "${values}" \
+  --set-string ingress.host=example.home.arpa >"${with_ingress}"
+grep -q '^kind: Ingress$' "${with_ingress}" || {
+  echo "ERROR: no Ingress rendered with ingress.host set" >&2
+  exit 1
+}
+kubeconform -strict -summary \
+  -schema-location default \
+  -schema-location "${catalog}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+  "${with_ingress}"
+
 echo "=== values schema"
 # The schema must refuse what the policies would refuse later
 reject() {
@@ -49,6 +70,9 @@ reject --set-string image.tag=latest
 reject --set-string image.tag=
 reject --set-string name=
 reject --set resources.limits=null
+reject --set-string ingress.host=example.com
+reject --set-string ingress.host=Example.home.arpa
+reject --set-string ingress.host=home.arpa
 
 echo "=== kyverno policies"
 # Policies are passed as files: for a directory of these policies kyverno loads

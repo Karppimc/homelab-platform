@@ -262,6 +262,15 @@ spec:
 
 A new version is released by changing `image.tag` in the service's repository.
 
+To publish a service on the LAN, set a host name in its values:
+
+```yaml
+ingress:
+  host: shop.home.arpa
+```
+
+The chart then adds an Ingress for Traefik with a certificate from the platform CA. It answers on HTTPS only; plain HTTP is not routed. The schema accepts only `*.home.arpa` names, because the CA signs nothing else, and the name has to resolve to a cluster node (today through the hosts file). Without `ingress.host` the service is reachable only inside the cluster.
+
 ### Starting a new service
 
 [service-template](https://github.com/Karppimc/service-template) is a GitHub template repository with everything a service needs before it has any business logic: a Go HTTP server with `/healthz`, `/readyz` and `/metrics`, a Dockerfile that builds a distroless non-root image with pinned base images, `deploy/values.yaml` for the chart above, and a CI pipeline that tests, builds, smoke-tests and scans the image, pushes it to GHCR tagged with the commit SHA, and runs this repository's `scripts/check-service-chart.sh` on the service's values, so a value the platform would refuse fails in the service's pull request.
@@ -344,6 +353,7 @@ Security is treated as a platform feature, not an afterthought.
 | Protected `main`, no bypass | Argo CD deploys whatever lands on `main`, so a commit there is a deployment. A ruleset allows changes only through a pull request with a green `validate` check, squash-merged; nobody can push directly or force push, the owner included, so the cluster only ever runs validated commits |
 | Standard labels as a policy, audited first | `require-standard-labels` requires `app.kubernetes.io/name`, `part-of` and `managed-by` on Deployments, StatefulSets, DaemonSets, Jobs, CronJobs (including their pod templates) and Pods. It ran in Audit first: most third-party charts label the controller but not the pods, so the findings were fixed through chart values, or given a narrow exception where the chart offers none, before it was switched to Deny. Jobs are matched themselves because a Job whose pods are rejected is created fine and then never completes, which would block an Argo CD sync without an error |
 | A namespace baseline as the landing zone | A workload is one small file (name, owner, quota size, source repositories); an ApplicationSet deploys a local Helm chart with it: namespace, ResourceQuota, LimitRange, default-deny NetworkPolicies and an Argo CD AppProject limited to that namespace. A Helm chart rather than Kustomize, because name and quota size are parameters, not patches. Removing the file never deletes the namespace |
+| Services are published over HTTPS only | An Ingress from the service chart is attached to Traefik's `websecure` entry point and always gets a certificate, so a service on the paved road cannot be published unencrypted by accident |
 | A platform-owned service chart | Services supply a values file; the platform's chart renders the Deployment, Service and ServiceMonitor with the labels, security context, probes and metrics the policies ask for. A policy change is then fixed in one chart instead of in every service's copy of a template, and CI proves the chart passes every policy without an exception |
 | Template and services in their own repositories | The template is a GitHub template repository and each service is its own repository with its own CI, as a team's service would be; this repository holds only what the platform owns (the baseline, the chart, the policies) plus two small files per workload |
 | Image tag is the commit SHA; a release is a pull request | CI pushes one image per commit on `main` and never overwrites a tag. Deploying is a reviewed change of `image.tag` in the service's repository, which Argo CD picks up; rollback is a revert |
