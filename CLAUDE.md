@@ -65,7 +65,8 @@ platform/                  GitOps: everything here is deployed by Argo CD from G
   namespace-baseline/      local Helm chart, the landing zone of one workload: Namespace, ResourceQuota, LimitRange,
                            NetworkPolicies (default deny) and an AppProject. values.schema.json validates workload files
   service-chart/           local Helm chart for services: Deployment, Service, ServiceMonitor (and an HTTPS-only Ingress
-                           when ingress.host is set) from a values file that lives in the service's repo
+                           when ingress.host is set; metrics and health paths answer 403 through a Traefik Middleware)
+                           from a values file that lives in the service's repo
                            (deploy/values.yaml). Must pass every policy without an exception
   apps/reference.yaml      the reference service: chart platform/service-chart from this repo, values from
                            Karppimc/reference-service (deploy/values.yaml); a release is an image.tag change in that repo

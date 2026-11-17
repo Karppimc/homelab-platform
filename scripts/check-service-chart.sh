@@ -52,6 +52,19 @@ grep -q '^kind: Ingress$' "${with_ingress}" || {
   echo "ERROR: no Ingress rendered with ingress.host set" >&2
   exit 1
 }
+# The platform's endpoints must not be published: a Middleware that refuses every
+# request, and an Ingress that sends exactly those paths through it
+if ! grep -q '^kind: Middleware$' "${with_ingress}" ||
+  ! grep -q 'router.middlewares: example-example-private-paths@kubernetescrd' "${with_ingress}"; then
+  echo "ERROR: no Middleware that keeps the metrics and health paths private" >&2
+  exit 1
+fi
+for path in /metrics /healthz /readyz; do
+  grep -A1 -- "- path: ${path}\$" "${with_ingress}" | grep -q 'pathType: Exact' || {
+    echo "ERROR: ${path} is not kept private by the Ingress" >&2
+    exit 1
+  }
+done
 kubeconform -strict -summary \
   -schema-location default \
   -schema-location "${catalog}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \

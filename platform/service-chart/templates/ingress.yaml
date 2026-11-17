@@ -30,3 +30,55 @@ spec:
                 port:
                   name: http
 {{- end }}
+{{- with .Values.ingress.host }}
+---
+# The endpoints that belong to the platform (metrics for Prometheus, health for the
+# kubelet) are not published: this second Ingress matches exactly those paths and
+# refuses them with 403. Prometheus and the kubelet reach the pod directly, not
+# through Traefik. The router priority makes these routes win over the "/" route
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ $.Values.name }}-private-paths
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "service.labels" $ | nindent 4 }}
+spec:
+  # Nobody's address is 127.0.0.1 at Traefik, so every request gets 403
+  ipAllowList:
+    sourceRange:
+      - 127.0.0.1/32
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $.Values.name }}-private-paths
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "service.labels" $ | nindent 4 }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{ $.Release.Namespace }}-{{ $.Values.name }}-private-paths@kubernetescrd
+    traefik.ingress.kubernetes.io/router.priority: "1000"
+spec:
+  ingressClassName: traefik
+  # The certificate issued for the main Ingress; no cert-manager annotation here,
+  # or cert-manager would try to manage the same Secret from two Ingresses
+  tls:
+    - secretName: {{ $.Values.name }}-tls
+      hosts:
+        - {{ . }}
+  rules:
+    - host: {{ . }}
+      http:
+        paths:
+          {{- range (list $.Values.metrics.path $.Values.health.livenessPath $.Values.health.readinessPath) | uniq }}
+          - path: {{ . }}
+            pathType: Exact
+            backend:
+              service:
+                name: {{ $.Values.name }}
+                port:
+                  name: http
+          {{- end }}
+{{- end }}
