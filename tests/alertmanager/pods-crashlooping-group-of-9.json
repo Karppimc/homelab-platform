@@ -1,0 +1,259 @@
+{
+  "receiver": "discord",
+  "status": "firing",
+  "externalURL": "http://kube-prometheus-stack-alertmanager.monitoring:9093",
+  "groupLabels": {
+    "alertname": "KubePodCrashLooping",
+    "namespace": "reference"
+  },
+  "commonLabels": {
+    "alertname": "KubePodCrashLooping",
+    "endpoint": "http",
+    "instance": "10.42.1.41:8080",
+    "job": "kube-state-metrics",
+    "prometheus": "monitoring/kube-prometheus-stack-prometheus",
+    "service": "kube-prometheus-stack-kube-state-metrics",
+    "uid": "d1b2",
+    "reason": "CrashLoopBackOff",
+    "namespace": "reference",
+    "container": "reference-service",
+    "severity": "warning"
+  },
+  "commonAnnotations": {},
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePodCrashLooping",
+        "endpoint": "http",
+        "instance": "10.42.1.41:8080",
+        "job": "kube-state-metrics",
+        "prometheus": "monitoring/kube-prometheus-stack-prometheus",
+        "service": "kube-prometheus-stack-kube-state-metrics",
+        "uid": "d1b2",
+        "reason": "CrashLoopBackOff",
+        "namespace": "reference",
+        "pod": "reference-service-dcc855c6d-00000",
+        "container": "reference-service",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Pod is crash looping.",
+        "runbook_url": "https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubepodcrashlooping",
+        "description": "Pod reference/reference-service-dcc855c6d-00000 (reference-service) is in waiting state (reason: \"CrashLoopBackOff\") on cluster ."
+      },
+      "startsAt": "2026-11-17T09:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://kube-prometheus-stack-prometheus.monitoring:9090/graph",
+      "fingerprint": "KubePodCrashLooping"
+    },
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePodCrashLooping",
+        "endpoint": "http",
+        "instance": "10.42.1.41:8080",
+        "job": "kube-state-metrics",
+        "prometheus": "monitoring/kube-prometheus-stack-prometheus",
+        "service": "kube-prometheus-stack-kube-state-metrics",
+        "uid": "d1b2",
+        "reason": "CrashLoopBackOff",
+        "namespace": "reference",
+        "pod": "reference-service-dcc855c6d-00001",
+        "container": "reference-service",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Pod is crash looping.",
+        "runbook_url": "https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubepodcrashlooping",
+        "description": "Pod reference/reference-service-dcc855c6d-00001 (reference-service) is in waiting state (reason: \"CrashLoopBackOff\") on cluster ."
+      },
+      "startsAt": "2026-11-17T09:01:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://kube-prometheus-stack-prometheus.monitoring:9090/graph",
+      "fingerprint": "KubePodCrashLooping"
+    },
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePodCrashLooping",
+        "endpoint": "http",
+        "instance": "10.42.1.41:8080",
+        "job": "kube-state-metrics",
+        "prometheus": "monitoring/kube-prometheus-stack-prometheus",
+        "service": "kube-prometheus-stack-kube-state-metrics",
+        "uid": "d1b2",
+        "reason": "CrashLoopBackOff",
+        "namespace": "reference",
+        "pod": "reference-service-dcc855c6d-00002",
+        "container": "reference-service",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Pod is crash looping.",
+        "runbook_url": "https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubepodcrashlooping",
+        "description": "Pod reference/reference-service-dcc855c6d-00002 (reference-service) is in waiting state (reason: \"CrashLoopBackOff\") on cluster ."
+      },
+      "startsAt": "2026-11-17T09:02:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://kube-prometheus-stack-prometheus.monitoring:9090/graph",
+      "fingerprint": "KubePodCrashLooping"
+    },
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePodCrashLooping",
+        "endpoint": "http",
+        "instance": "10.42.1.41:8080",
+        "job": "kube-state-metrics",
+        "prometheus": "monitoring/kube-prometheus-stack-prometheus",
+        "service": "kube-prometheus-stack-kube-state-metrics",
+        "uid": "d1b2",
+        "reason": "CrashLoopBackOff",
+        "namespace": "reference",
+        "pod": "reference-service-dcc855c6d-00003",
+        "container": "reference-service",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Pod is crash looping.",
+        "runbook_url": "https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubepodcrashlooping",
+        "description": "Pod reference/reference-service-dcc855c6d-00003 (reference-service) is in waiting state (reason: \"CrashLoopBackOff\") on cluster ."
+      },
+      "startsAt": "2026-11-17T09:03:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://kube-prometheus-stack-prometheus.monitoring:9090/graph",
+      "fingerprint": "KubePodCrashLooping"
+    },
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePodCrashLooping",
+        "endpoint": "http",
+        "instance": "10.42.1.41:8080",
+        "job": "kube-state-metrics",
+        "prometheus": "monitoring/kube-prometheus-stack-prometheus",
+        "service": "kube-prometheus-stack-kube-state-metrics",
+        "uid": "d1b2",
+        "reason": "CrashLoopBackOff",
+        "namespace": "reference",
+        "pod": "reference-service-dcc855c6d-00004",
+        "container": "reference-service",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Pod is crash looping.",
+        "runbook_url": "https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubepodcrashlooping",
+        "description": "Pod reference/reference-service-dcc855c6d-00004 (reference-service) is in waiting state (reason: \"CrashLoopBackOff\") on cluster ."
+      },
+      "startsAt": "2026-11-17T09:04:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://kube-prometheus-stack-prometheus.monitoring:9090/graph",
+      "fingerprint": "KubePodCrashLooping"
+    },
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePodCrashLooping",
+        "endpoint": "http",
+        "instance": "10.42.1.41:8080",
+        "job": "kube-state-metrics",
+        "prometheus": "monitoring/kube-prometheus-stack-prometheus",
+        "service": "kube-prometheus-stack-kube-state-metrics",
+        "uid": "d1b2",
+        "reason": "CrashLoopBackOff",
+        "namespace": "reference",
+        "pod": "reference-service-dcc855c6d-00005",
+        "container": "reference-service",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Pod is crash looping.",
+        "runbook_url": "https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubepodcrashlooping",
+        "description": "Pod reference/reference-service-dcc855c6d-00005 (reference-service) is in waiting state (reason: \"CrashLoopBackOff\") on cluster ."
+      },
+      "startsAt": "2026-11-17T09:05:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://kube-prometheus-stack-prometheus.monitoring:9090/graph",
+      "fingerprint": "KubePodCrashLooping"
+    },
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePodCrashLooping",
+        "endpoint": "http",
+        "instance": "10.42.1.41:8080",
+        "job": "kube-state-metrics",
+        "prometheus": "monitoring/kube-prometheus-stack-prometheus",
+        "service": "kube-prometheus-stack-kube-state-metrics",
+        "uid": "d1b2",
+        "reason": "CrashLoopBackOff",
+        "namespace": "reference",
+        "pod": "reference-service-dcc855c6d-00006",
+        "container": "reference-service",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Pod is crash looping.",
+        "runbook_url": "https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubepodcrashlooping",
+        "description": "Pod reference/reference-service-dcc855c6d-00006 (reference-service) is in waiting state (reason: \"CrashLoopBackOff\") on cluster ."
+      },
+      "startsAt": "2026-11-17T09:06:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://kube-prometheus-stack-prometheus.monitoring:9090/graph",
+      "fingerprint": "KubePodCrashLooping"
+    },
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePodCrashLooping",
+        "endpoint": "http",
+        "instance": "10.42.1.41:8080",
+        "job": "kube-state-metrics",
+        "prometheus": "monitoring/kube-prometheus-stack-prometheus",
+        "service": "kube-prometheus-stack-kube-state-metrics",
+        "uid": "d1b2",
+        "reason": "CrashLoopBackOff",
+        "namespace": "reference",
+        "pod": "reference-service-dcc855c6d-00007",
+        "container": "reference-service",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Pod is crash looping.",
+        "runbook_url": "https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubepodcrashlooping",
+        "description": "Pod reference/reference-service-dcc855c6d-00007 (reference-service) is in waiting state (reason: \"CrashLoopBackOff\") on cluster ."
+      },
+      "startsAt": "2026-11-17T09:07:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://kube-prometheus-stack-prometheus.monitoring:9090/graph",
+      "fingerprint": "KubePodCrashLooping"
+    },
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePodCrashLooping",
+        "endpoint": "http",
+        "instance": "10.42.1.41:8080",
+        "job": "kube-state-metrics",
+        "prometheus": "monitoring/kube-prometheus-stack-prometheus",
+        "service": "kube-prometheus-stack-kube-state-metrics",
+        "uid": "d1b2",
+        "reason": "CrashLoopBackOff",
+        "namespace": "reference",
+        "pod": "reference-service-dcc855c6d-00008",
+        "container": "reference-service",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Pod is crash looping.",
+        "runbook_url": "https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubepodcrashlooping",
+        "description": "Pod reference/reference-service-dcc855c6d-00008 (reference-service) is in waiting state (reason: \"CrashLoopBackOff\") on cluster ."
+      },
+      "startsAt": "2026-11-17T09:08:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://kube-prometheus-stack-prometheus.monitoring:9090/graph",
+      "fingerprint": "KubePodCrashLooping"
+    }
+  ]
+}

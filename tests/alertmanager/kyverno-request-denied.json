@@ -1,0 +1,36 @@
+{
+  "receiver": "discord",
+  "status": "firing",
+  "externalURL": "http://kube-prometheus-stack-alertmanager.monitoring:9093",
+  "groupLabels": {
+    "alertname": "KyvernoRequestDenied"
+  },
+  "commonLabels": {
+    "alertname": "KyvernoRequestDenied",
+    "policy_name": "require-standard-labels",
+    "resource_namespace": "reference",
+    "resource_kind": "Deployment",
+    "severity": "warning"
+  },
+  "commonAnnotations": {},
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KyvernoRequestDenied",
+        "policy_name": "require-standard-labels",
+        "resource_namespace": "reference",
+        "resource_kind": "Deployment",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Kyverno policy require-standard-labels denied a Deployment in reference",
+        "description": "Policy require-standard-labels rejected a Deployment in namespace reference in the last 10 minutes. If Argo CD made the request, the application is failing to sync."
+      },
+      "startsAt": "2026-11-16T17:55:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://kube-prometheus-stack-prometheus.monitoring:9090/graph",
+      "fingerprint": "KyvernoRequestDenied"
+    }
+  ]
+}

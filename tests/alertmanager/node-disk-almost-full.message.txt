@@ -1,0 +1,3 @@
+**Filesystem has less than 3% space left.**
+Filesystem on /dev/sda1, mounted on /, at 192.168.1.231:9100 has only 2.41% available space left.
+`instance=192.168.1.231:9100` `mountpoint=/` `device=/dev/sda1` · critical · since 2026-11-16 17:55 UTC · [runbook](https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemalmostoutofspace)
