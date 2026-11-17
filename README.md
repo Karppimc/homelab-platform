@@ -306,6 +306,21 @@ The platform's own rules are tested like the policies: `tests/alerts/` has `prom
 
 Before this, every alert went to a receiver called `null`: the rules fired and nobody heard them.
 
+**What a message looks like**
+
+Alertmanager's default Discord message lists every label of every alert, a dozen of them for a real alert. The platform's templates show what is broken, where, how bad and since when, and link the runbook when the rule has one:
+
+```
+[FIRING:9] KubePodCrashLooping · reference
+**Pod is crash looping.**
+Pod reference/reference-service-dcc855c6d-00000 (reference-service) is in waiting state (reason: "CrashLoopBackOff") on cluster .
+`namespace=reference` `pod=reference-service-dcc855c6d-00000` `container=reference-service` · warning · since 2026-11-17 09:00 UTC · [runbook](...)
+...
+Showing 6 of 9 alerts in this group; the rest are in Alertmanager.
+```
+
+At most six alerts are listed per message, which keeps a group within Discord's limit of 4096 characters. `tests/alertmanager/` holds realistic notification data and the exact title and message expected for each; CI renders the templates with `amtool` and compares, because a broken template does not fail a sync, it makes Alertmanager fail to send.
+
 **Testing the pipeline**
 
 A test alert is added with `amtool`, which ships in the Alertmanager image. It takes the same route as a real alert and resolves by itself after five minutes:

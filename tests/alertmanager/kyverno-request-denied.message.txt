@@ -1,0 +1,3 @@
+**Kyverno policy require-standard-labels denied a Deployment in reference**
+Policy require-standard-labels rejected a Deployment in namespace reference in the last 10 minutes. If Argo CD made the request, the application is failing to sync.
+`resource_namespace=reference` `policy_name=require-standard-labels` `resource_kind=Deployment` · warning · since 2026-11-16 17:55 UTC

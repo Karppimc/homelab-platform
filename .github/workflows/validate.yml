@@ -37,6 +37,10 @@ env:
   # promtool for the alert rule tests; same version as the Prometheus in the cluster
   PROMETHEUS_VERSION: 3.15.0
   PROMETHEUS_SHA256: 2a542df32eac02ee17b9d844fb2aa1de00dafa5476579ba8a3ba862e9d572ea0
+  # amtool for the Alertmanager configuration and message templates; same version
+  # as the Alertmanager in the cluster
+  ALERTMANAGER_VERSION: 0.34.1
+  ALERTMANAGER_SHA256: 265b9d1e55ef0d5306a436018af6d2b686c2ce051f03d968f7464ecb1372a7e8
   KUBECONFORM_VERSION: v0.8.0
   KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
   # CRD schemas (Argo CD, Kyverno) come from datreeio/CRDs-catalog, pinned to
@@ -115,11 +119,13 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install PyYAML
         run: pip install "PyYAML==${PYYAML_VERSION}"
-      - name: Install kyverno, kubeconform, helm and promtool
+      - name: Install kyverno, kubeconform, helm, promtool and amtool
         working-directory: ${{ runner.temp }}
         run: |
           curl -fsSLo helm.tar.gz \
             "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          curl -fsSLo alertmanager.tar.gz \
+            "https://github.com/prometheus/alertmanager/releases/download/v${ALERTMANAGER_VERSION}/alertmanager-${ALERTMANAGER_VERSION}.linux-amd64.tar.gz"
           curl -fsSLo prometheus.tar.gz \
             "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
           curl -fsSLo kyverno.tar.gz \
@@ -131,6 +137,7 @@ jobs:
           ${KUBECONFORM_SHA256}  kubeconform.tar.gz
           ${HELM_SHA256}  helm.tar.gz
           ${PROMETHEUS_SHA256}  prometheus.tar.gz
+          ${ALERTMANAGER_SHA256}  alertmanager.tar.gz
           EOF
           mkdir -p "${RUNNER_TEMP}/bin"
           tar -xzf kyverno.tar.gz -C "${RUNNER_TEMP}/bin" kyverno
@@ -138,6 +145,8 @@ jobs:
           tar -xzf helm.tar.gz -C "${RUNNER_TEMP}/bin" --strip-components=1 linux-amd64/helm
           tar -xzf prometheus.tar.gz -C "${RUNNER_TEMP}/bin" --strip-components=1 \
             "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool"
+          tar -xzf alertmanager.tar.gz -C "${RUNNER_TEMP}/bin" --strip-components=1 \
+            "alertmanager-${ALERTMANAGER_VERSION}.linux-amd64/amtool"
           echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
       # Helm values files are not manifests, so only the directories that hold
       # Kubernetes resources are checked
@@ -162,6 +171,10 @@ jobs:
       # the alert just never fires
       - name: alert rules
         run: scripts/check-alert-rules.py
+      # A broken message template does not fail the sync: Alertmanager fails to
+      # send, and the alert never arrives
+      - name: alertmanager
+        run: scripts/check-alertmanager.py
       # Renders every chart in platform/apps with its pinned version and values
       # and applies the policies to the workloads, Helm hook Jobs included.
       # Fetches the charts from their public Helm repositories

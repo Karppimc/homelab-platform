@@ -15,7 +15,13 @@ spec:
     - name: platform-argocd
       rules:
         - alert: ArgoCDAppDegraded
-          expr: argocd_app_info{health_status="Degraded"} == 1
+          # Keep the labels about the application, drop the ones about the scrape
+          # (pod, container, instance of the Argo CD controller), which would
+          # point at Argo CD instead of the application in the notification
+          expr: |
+            max by (namespace, name, project, health_status, sync_status) (
+              argocd_app_info{health_status="Degraded"}
+            ) == 1
           for: 10m
           labels:
             severity: warning
@@ -25,7 +31,10 @@ spec:
               Application {{ $labels.name }} (project {{ $labels.project }}) has reported
               health Degraded for 10 minutes: a workload it deploys is failing.
         - alert: ArgoCDAppOutOfSync
-          expr: argocd_app_info{sync_status="OutOfSync"} == 1
+          expr: |
+            max by (namespace, name, project, health_status, sync_status) (
+              argocd_app_info{sync_status="OutOfSync"}
+            ) == 1
           for: 15m
           labels:
             severity: warning

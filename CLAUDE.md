@@ -72,6 +72,7 @@ platform/                  GitOps: everything here is deployed by Argo CD from G
                            Karppimc/reference-service (deploy/values.yaml); a release is an image.tag change in that repo
   workloads/               one values file per workload (name, owner, quota, sourceRepos); the ApplicationSet
                            platform/apps/workloads.yaml creates an Application baseline-<name> from each
+tests/alertmanager/        notification data (<case>.json) and the expected Discord title and message for each
 tests/alerts/              promtool unit tests for the rules in platform/alerts/ (<name>_test.yaml per manifest)
 tests/service-chart/       example values for the service chart (what a service's deploy/values.yaml looks like)
 tests/policies/            Kyverno CLI tests, one directory per policy (kyverno-test.yaml + resources.yaml).
@@ -81,6 +82,8 @@ scripts/                   check-chart-policies.py: renders the charts in platfo
                            check-namespace-baseline.sh: lints the baseline chart and validates its render per workload file
                            check-alert-rules.py: extracts the rule groups from platform/alerts/ and runs promtool
                            check rules and test rules with tests/alerts/; fails if an alert has no test
+                           check-alertmanager.py: amtool check-config of the Alertmanager config and the Discord
+                           templates rendered for tests/alertmanager/ (compared with the expected files)
                            check-service-chart.sh: renders the service chart with tests/service-chart/values.yaml, then
                            kubeconform, schema negatives and the Kyverno policies
 .yamllint                  yamllint config for the whole repo
@@ -98,7 +101,7 @@ All work happens in **WSL (Debian)**, not on the Windows filesystem. Ansible ref
 
 - Repo: `~/homelab-platform`
 - Tools: Terraform, Ansible (via pipx, with `kubernetes==37.0.1` injected for `kubernetes.core.k8s`), kubectl, Helm v3.22.0 (`~/.local/bin`, SHA256-verified)
-- Lint and test tools, same versions as CI (`.github/workflows/validate.yml`): ansible-lint 26.10.1 (pipx, with `ansible-core==2.19.14` pinned in its venv), yamllint 1.38.0 (pipx), Kyverno CLI v1.19.1 and kubeconform v0.8.0 (`~/.local/bin`, SHA256-verified). `scripts/check-alert-rules.py` needs `promtool` 3.15.0 (from the Prometheus release tarball; keep it equal to the cluster's Prometheus). `scripts/check-chart-policies.py` also needs Helm and PyYAML (CI pins PyYAML 6.0.3)
+- Lint and test tools, same versions as CI (`.github/workflows/validate.yml`): ansible-lint 26.10.1 (pipx, with `ansible-core==2.19.14` pinned in its venv), yamllint 1.38.0 (pipx), Kyverno CLI v1.19.1 and kubeconform v0.8.0 (`~/.local/bin`, SHA256-verified). `scripts/check-alertmanager.py` needs `amtool` 0.34.1 (Alertmanager release tarball; equal to the cluster's Alertmanager). `scripts/check-alert-rules.py` needs `promtool` 3.15.0 (from the Prometheus release tarball; keep it equal to the cluster's Prometheus). `scripts/check-chart-policies.py` also needs Helm and PyYAML (CI pins PyYAML 6.0.3)
 - `KUBECONFIG=~/.kube/homelab.yaml` (fetched by the k3s playbook, exported in `~/.bashrc`). Without it kubectl falls back to `~/.kube/config`, which points at an old Docker Desktop cluster
 - SSH key loaded via `keychain`
 
@@ -138,6 +141,7 @@ yamllint .
 scripts/check-namespace-baseline.sh   # helm lint + render + kubeconform for every file in platform/workloads
 scripts/check-service-chart.sh        # service chart: lint, render, kubeconform, schema negatives, policies
 kyverno test tests/policies
+scripts/check-alertmanager.py         # amtool: config + Discord messages; --update rewrites the expected files
 scripts/check-alert-rules.py          # promtool check + unit tests for platform/alerts (needs promtool on PATH)
 scripts/check-chart-policies.py   # helm template every chart in platform/apps, then kyverno apply (hook Jobs included)
 kubeconform -strict -summary -schema-location default \
@@ -175,6 +179,7 @@ Full rebuild: `terraform destroy` → `terraform apply` → `ansible-playbook pl
 - **CI versions are pinned in one place**, the `env` block of `.github/workflows/validate.yml`: actions by commit SHA, binaries by SHA256, the CRD schema catalog by commit. Keep the Kyverno CLI version equal to the cluster's
 - CI has no vault password: `ansible-lint` runs with a placeholder password file, which is enough because the syntax check never decrypts `vault.yml`. Never add the real password as a GitHub secret for linting
 - **Alerts:** everything except `Watchdog`, `InfoInhibitor` and `severity: info` goes to Discord. New platform rules go in `platform/alerts/` as PrometheusRules, and **every rule change comes with test cases** in `tests/alerts/` (it fires when it should and stays quiet otherwise); `scripts/check-alert-rules.py` refuses an alert without a test. Also evaluate the expression against the live Prometheus before the PR: the tests use made-up series, the cluster has the real label names. Remember that `increase()` does not see a counter series that has just appeared (see the comment in `platform/alerts/kyverno.yaml`). Local `ansible-lint` cannot resolve `kubernetes.core` on this workstation; CI can, use `ansible-playbook --syntax-check` locally
+- **Discord messages** come from the templates in `alertmanager.templateFiles` (kube-prometheus-stack values). After changing them, run `scripts/check-alertmanager.py --update` and read the diff of `tests/alertmanager/*.txt`: that is what the channel will show. A label that only describes the scrape (exporter pod, endpoint, instance of an exporter) does not belong in a message; drop it in the rule (`max by (...)`) or leave it out of the template's "where" list
 - **TLS for an Ingress:** annotate it with `cert-manager.io/cluster-issuer: homelab-ca` and give `tls` a `secretName`; cert-manager creates and renews the certificate. Only `*.home.arpa` names work: the CA is name-constrained to `home.arpa`
 - When triggering a sync by patching `.operation`, pass the app's `syncOptions` too (e.g. `ServerSideApply=true`); otherwise Argo CD falls back to client-side apply and large CRDs fail
 

@@ -1,0 +1,3 @@
+**Argo CD application cert-manager-issuers is degraded**
+Application cert-manager-issuers (project default) has reported health Degraded for 10 minutes: a workload it deploys is failing.
+`namespace=argocd` `name=cert-manager-issuers` · warning · since 2026-11-16 17:55 UTC

@@ -1,0 +1,41 @@
+{
+  "receiver": "discord",
+  "status": "resolved",
+  "externalURL": "http://kube-prometheus-stack-alertmanager.monitoring:9093",
+  "groupLabels": {
+    "alertname": "ArgoCDAppDegraded",
+    "namespace": "argocd"
+  },
+  "commonLabels": {
+    "alertname": "ArgoCDAppDegraded",
+    "name": "cert-manager-issuers",
+    "namespace": "argocd",
+    "project": "default",
+    "health_status": "Degraded",
+    "sync_status": "Synced",
+    "severity": "warning"
+  },
+  "commonAnnotations": {},
+  "alerts": [
+    {
+      "status": "resolved",
+      "labels": {
+        "alertname": "ArgoCDAppDegraded",
+        "name": "cert-manager-issuers",
+        "namespace": "argocd",
+        "project": "default",
+        "health_status": "Degraded",
+        "sync_status": "Synced",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Argo CD application cert-manager-issuers is degraded",
+        "description": "Application cert-manager-issuers (project default) has reported health Degraded for 10 minutes: a workload it deploys is failing."
+      },
+      "startsAt": "2026-11-16T17:55:00Z",
+      "endsAt": "2026-11-16T18:20:00Z",
+      "generatorURL": "http://kube-prometheus-stack-prometheus.monitoring:9090/graph",
+      "fingerprint": "ArgoCDAppDegraded"
+    }
+  ]
+}

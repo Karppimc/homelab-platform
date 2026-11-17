@@ -58,6 +58,32 @@ tests:
         alertname: ArgoCDAppDegraded
         exp_alerts: []
 
+  - name: the alert names the application, not the Argo CD controller it was scraped from
+    interval: 1m
+    input_series:
+      - series: >-
+          argocd_app_info{name="demo", project="demo", namespace="argocd", health_status="Degraded",
+          sync_status="Synced", pod="argocd-application-controller-0", container="application-controller",
+          instance="10.42.3.42:8082", job="argocd-application-controller-metrics",
+          dest_server="https://kubernetes.default.svc"}
+        values: '1x30'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: ArgoCDAppDegraded
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              name: demo
+              project: demo
+              namespace: argocd
+              health_status: Degraded
+              sync_status: Synced
+            exp_annotations:
+              summary: Argo CD application demo is degraded
+              description: >-
+                Application demo (project demo) has reported
+                health Degraded for 10 minutes: a workload it deploys is failing.
+
   - name: OutOfSync fires only after 15 minutes
     interval: 1m
     input_series:
