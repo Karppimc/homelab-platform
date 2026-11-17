@@ -151,6 +151,21 @@ alertmanager:
 
       Showing 6 of {{ len .Alerts }} alerts in this group; the rest are in Alertmanager.{{ end }}
       {{- end }}
+  alertmanagerSpec:
+    # Mounted at /etc/alertmanager/secrets/<name>/. Alertmanager does not start
+    # without it: run bootstrap-secrets.yml before the first sync
+    secrets:
+      - alertmanager-discord
+    # Same as for Prometheus: the standard labels on the operator-made pods
+    podMetadata:
+      labels:
+        app.kubernetes.io/part-of: kube-prometheus-stack
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
 
 prometheusOperator:
   # cert-manager issues the operator's webhook certificate (a self-signed issuer in

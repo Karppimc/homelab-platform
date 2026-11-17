@@ -5,8 +5,14 @@ The configuration and the templates live in the kube-prometheus-stack values
 (alertmanager.config and alertmanager.templateFiles). The script writes them
 out as Alertmanager would see them and runs:
 
-1. `amtool check-config`, with a placeholder for the webhook URL file,
-2. `amtool template render` of the Discord receiver's title and message for
+1. checks on the Alertmanager resource the operator builds the pods from
+   (alertmanagerSpec), which no render in CI shows: every Secret a receiver
+   reads a file from is mounted, and the container has a memory request and
+   limit and the part-of label the policies require. Without them the
+   operator's update of the StatefulSet is denied, or Alertmanager starts
+   without its webhook URL and sends nothing,
+2. `amtool check-config`, with a placeholder for the webhook URL file,
+3. `amtool template render` of the Discord receiver's title and message for
    every case in tests/alertmanager/*.json (Alertmanager's notification data),
    compared with <case>.title.txt and <case>.message.txt next to it.
 
@@ -22,6 +28,7 @@ Needs amtool and PyYAML. To rewrite the expected files after an intended change:
 
 import argparse
 import difflib
+import re
 import shutil
 import subprocess
 import sys
@@ -39,6 +46,24 @@ LIMITS = {"title": 256, "message": 4096}
 def fail(message):
     print(f"ERROR: {message}", file=sys.stderr)
     sys.exit(1)
+
+
+def check_spec(config, spec):
+    """The parts of alertmanagerSpec that the receivers and the policies depend on."""
+    problems = []
+    mounted = set(spec.get("secrets") or [])
+    used = set(re.findall(r"/etc/alertmanager/secrets/([^/]+)/", yaml.safe_dump(config)))
+    for name in sorted(used - mounted):
+        problems.append(f"a receiver reads /etc/alertmanager/secrets/{name}/ but alertmanagerSpec.secrets "
+                        f"does not mount {name}")
+    resources = spec.get("resources") or {}
+    if not (resources.get("requests") or {}).get("memory") or not (resources.get("limits") or {}).get("memory"):
+        problems.append("alertmanagerSpec.resources needs a memory request and limit (require-memory-limits)")
+    labels = ((spec.get("podMetadata") or {}).get("labels") or {})
+    if not labels.get("app.kubernetes.io/part-of"):
+        problems.append("alertmanagerSpec.podMetadata.labels needs app.kubernetes.io/part-of "
+                        "(require-standard-labels)")
+    return problems
 
 
 def render(amtool, templates, data, text):
@@ -61,6 +86,14 @@ def main():
         fail("amtool is not on PATH (it ships in the Alertmanager release tarball)")
     alertmanager = yaml.safe_load(VALUES.read_text())["alertmanager"]
     config, template_files = alertmanager["config"], alertmanager.get("templateFiles") or {}
+
+    print("=== alertmanagerSpec")
+    problems = check_spec(config, alertmanager.get("alertmanagerSpec") or {})
+    for problem in problems:
+        print(problem)
+    if problems:
+        fail("alertmanagerSpec is missing what the receivers or the policies need")
+    print("secrets, memory and labels: ok")
     discord = [c for r in config["receivers"] for c in r.get("discord_configs") or []]
     if len(discord) != 1:
         fail(f"expected exactly one discord_configs entry, found {len(discord)}")
